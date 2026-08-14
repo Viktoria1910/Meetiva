@@ -21,7 +21,7 @@ export default function Search() {
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
       <Navbar />
       <div style={{ background: '#7DA68D', padding: '36px 24px' }}>
-        <div className="max-w-2xl mx-auto">
+          <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <h1 className="text-2xl font-extrabold text-white mb-4">Pretraži usluge</h1>
           <div className="flex items-center bg-white rounded-xl overflow-hidden"
             style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
@@ -35,7 +35,7 @@ export default function Search() {
           </div>
         </div>
       </div>
-      <div className="max-w-2xl mx-auto px-6 py-6 w-full">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-12 py-6 w-full">
         {query.trim().length >= 2 ? (
           results.length > 0 ? (
             <div className="flex flex-col gap-3">

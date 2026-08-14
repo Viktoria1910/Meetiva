@@ -20,21 +20,26 @@ export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const links = isLoggedIn ? LOGGED_IN_LINKS : NAV_LINKS;
+  const links = isLoggedIn
+    ? user?.role === 'admin'
+      ? [{ to: '/admin', label: 'Admin panel' }]
+      : LOGGED_IN_LINKS
+    : NAV_LINKS;
 
   const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + '/');
 
   return (
     <nav style={{ background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 1px 0 #DDE3DE' }}>
-      <div className="max-w-screen-xl mx-auto px-6 flex items-center gap-2" style={{ height: 60 }}>
+      {/* Promijenjeno sa 'max-w-screen-xl mx-auto' u 'w-full' i dodan 'px-6 sm:px-8' za punu širinu ekrana */}
+      <div className="w-full px-6 sm:px-8 flex items-center gap-2" style={{ height: 60 }}>
 
         {/* Logo */}
         <Link to="/" className="flex-shrink-0 mr-3" style={{ textDecoration: 'none' }}>
           <img src={logo} alt="Meetiva" style={{ height: 36, width: 'auto' }} />
         </Link>
 
-        {/* Nav links — left-aligned next to logo */}
-        <div className="flex items-center gap-1 overflow-x-auto">
+        {/* Nav links — hidden on mobile, visible sm+ */}
+        <div className="hidden sm:flex items-center gap-1 overflow-x-auto">
           {links.map(({ to, label }) => (
             <Link
               key={to}

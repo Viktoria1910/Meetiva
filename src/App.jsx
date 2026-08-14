@@ -12,6 +12,8 @@ import Dashboard    from './pages/Dashboard';
 import Messages     from './pages/Messages';
 import Profile      from './pages/Profile';
 import Search       from './pages/Search';
+import ProviderSetup from './pages/ProviderSetup';
+import AdminPanel   from './pages/AdminPanel';
 
 export default function App() {
   return (
@@ -28,6 +30,8 @@ export default function App() {
           <Route path="/messages"                  element={<Messages />} />
           <Route path="/profile"                   element={<Profile />} />
           <Route path="/search"                    element={<Search />} />
+          <Route path="/provider-setup"             element={<ProviderSetup />} />
+          <Route path="/admin"                      element={<AdminPanel />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -117,7 +117,7 @@ export default function Messages() {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
       <Navbar />
-      <div className="max-w-6xl mx-auto px-6 py-6 w-full flex gap-4"
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-6 w-full flex gap-4"
         style={{ height: 'calc(100vh - 116px)', minHeight: 500 }}>
 
         {/* Conversation list */}

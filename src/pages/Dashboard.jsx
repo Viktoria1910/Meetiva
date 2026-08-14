@@ -38,14 +38,14 @@ export default function Dashboard() {
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
       <Navbar />
       <div style={{ background: '#505A5B', padding: '32px 24px' }}>
-        <div className="max-w-4xl mx-auto">
+          <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <h1 className="text-2xl font-extrabold text-white">Moje rezervacije</h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 2 }}>
             Dobrodošao/la, {user.name}
           </p>
         </div>
       </div>
-      <div className="max-w-4xl mx-auto px-6 py-8 w-full">
+      <div className="max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-12 py-8 w-full">
         {reservations.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl" style={{ border: '1px solid #DDE3DE' }}>
             <p className="text-4xl mb-3">📋</p>

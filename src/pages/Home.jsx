@@ -5,10 +5,26 @@ import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
 
 const CATEGORY_CARDS = [
-  { slug: 'sale',      label: 'Wedding Halls',  icon: '🏛️', bg: 'linear-gradient(160deg,#7DA68D 0%,#505A5B 100%)' },
-  { slug: 'bendovi',   label: 'Bands & DJs',    icon: '🎸', bg: 'linear-gradient(160deg,#A7A5D0 0%,#505A5B 100%)' },
-  { slug: 'fotografi', label: 'Photographers',  icon: 'đź“·', bg: 'linear-gradient(160deg,#505A5B 0%,#2B3132 100%)' },
-  { slug: 'catering',  label: 'Catering',       icon: 'đźŤ˝ď¸Ź', bg: 'linear-gradient(160deg,#7DA68D 0%,#A7A5D0 100%)' },
+  { 
+    slug: 'sale', 
+    label: 'Wedding Halls', 
+    img: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=800' 
+  },
+  { 
+    slug: 'bendovi', 
+    label: 'Bands & DJs', 
+    img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&q=80&w=800' 
+  },
+  { 
+    slug: 'fotografi', 
+    label: 'Photographers', 
+    img: 'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&q=80&w=800' 
+  },
+  { 
+    slug: 'catering', 
+    label: 'Catering', 
+    img: 'https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&q=80&w=800' 
+  },
 ];
 
 const CARD_BG = [
@@ -25,251 +41,239 @@ const TOP_PROVIDERS = Object.entries(categoryData)
 
 const FOOTER_LINKS = {
   Company: ['About', 'Blog', 'Careers'],
-  Legal:   ['Terms', 'Privacy', 'Cookies'],
+  Legal: ['Terms', 'Privacy', 'Cookies'],
   Support: ['Help Center', 'Contact Us', 'FAQ'],
 };
 
 export default function Home() {
   const navigate = useNavigate();
-  const [what,  setWhat]  = useState('');
+  const [category, setCategory] = useState(''); // Popravljeno: zamijenjeno "what" sa "category"
   const [where, setWhere] = useState('');
-  const [when,  setWhen]  = useState('');
+  const [when, setWhen] = useState('');
   const [liked, setLiked] = useState({});
 
   const handleSearch = (e) => {
-    e.preventDefault();
-    navigate('/services');
-  };
+  e.preventDefault();
+  
+  // Stvaramo URL parametre na temelju onoga što je korisnik unio/odabrao
+  const params = new URLSearchParams();
+  if (category) params.append('category', category);
+  if (where) params.append('where', where);
+  if (when) params.append('when', when);
+
+  // Preusmjeravamo na /services?category=...&where=...&when=...
+  navigate(`/services?${params.toString()}`);
+};
 
   const toggleLike = (id, e) => {
     e.preventDefault();
     setLiked(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  /* â”€â”€ shared input-group style â”€â”€ */
-  const fieldWrap = (borderRight) => ({
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    padding: '10px 10px',
-    borderRight: borderRight ? '1px solid #F0F0F0' : 'none',
-  });
-
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#FFFFFF' }}>
+    <div className="min-h-screen bg-white w-full flex flex-col">
       <Navbar />
 
-      {/* â•â•â• HERO â•â•â• */}
-      <section style={{ background: '#7DA68D', padding: '72px 24px 88px' }}>
-        <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '3.25rem', fontWeight: 800, color: 'white', lineHeight: 1.15, marginBottom: 16 }}>
-            Plan your perfect event
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.125rem', maxWidth: 520, margin: '0 auto 44px' }}>
-            From intimate gatherings to massive corporate galas. Find everything you need in one place.
-          </p>
-
-          {/* Search bar */}
-          <form onSubmit={handleSearch}>
-            <div style={{ background: 'white', borderRadius: 16, display: 'flex', alignItems: 'stretch', maxWidth: 920, margin: '0 auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
-
-              {/* WHAT */}
-              <div style={fieldWrap(true)}>
-                <Search size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-                <div style={{ minWidth: 0, textAlign: 'left' }}>
-                  <p style={{ fontSize: '0.625rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
-                    What are you planning?
-                  </p>
-                  <input
-                    type="text"
-                    value={what}
-                    onChange={e => setWhat(e.target.value)}
-                    placeholder="Wedding, Corporate..."
-                    style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.875rem', color: '#2B3132', background: 'transparent' }}
-                  />
-                </div>
-              </div>
-
-              {/* WHERE */}
-              <div style={fieldWrap(true)}>
-                <MapPin size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-                <div style={{ minWidth: 0, textAlign: 'left' }}>
-                  <p style={{ fontSize: '0.625rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
-                    Where?
-                  </p>
-                  <input
-                    type="text"
-                    value={where}
-                    onChange={e => setWhere(e.target.value)}
-                    placeholder="City or region"
-                    style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.875rem', color: '#2B3132', background: 'transparent' }}
-                  />
-                </div>
-              </div>
-
-              {/* WHEN */}
-              <div style={fieldWrap(true)}>
-                <Calendar size={15} style={{ color: '#9CA3AF', flexShrink: 0 }} />
-                <div style={{ minWidth: 0, textAlign: 'left' }}>
-                  <p style={{ fontSize: '0.625rem', fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 2 }}>
-                    When?
-                  </p>
-                  <input
-                    type="text"
-                    value={when}
-                    onChange={e => setWhen(e.target.value)}
-                    placeholder="Dates"
-                    style={{ width: '100%', border: 'none', outline: 'none', fontSize: '0.875rem', color: '#2B3132', background: 'transparent' }}
-                  />
-                </div>
-              </div>
-
-              {/* BUTTON */}
-              <button
-                type="submit"
-                style={{ padding: '0 36px', background: '#A7A5D0', color: 'white', fontWeight: 600, fontSize: '1rem', border: 'none', cursor: 'pointer', flexShrink: 0 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#8886B8'}
-                onMouseLeave={e => e.currentTarget.style.background = '#A7A5D0'}
-              >
-                Search
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      {/* â•â•â• BROWSE BY CATEGORY â•â•â• */}
-      <section style={{ padding: '64px 24px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1F2937', marginBottom: 24 }}>Browse by category</h2>
-
-          {/* Asymmetric 3-col Ă— 2-row grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gridTemplateRows: '210px 210px', gap: 12 }}>
-
-            {/* Large card â€” col 1, spans both rows */}
-            <Link to={'/services/' + CATEGORY_CARDS[0].slug}
-              style={{ gridColumn: '1', gridRow: '1 / 3', background: CATEGORY_CARDS[0].bg, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 20, textDecoration: 'none', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', fontSize: '5rem', opacity: 0.15 }}>
-                {CATEGORY_CARDS[0].icon}
-              </span>
-              <span style={{ background: 'white', color: '#1F2937', fontWeight: 700, fontSize: '1rem', padding: '7px 16px', borderRadius: 8, display: 'inline-block', alignSelf: 'flex-start' }}>
-                {CATEGORY_CARDS[0].label}
-              </span>
-            </Link>
-
-            {/* Top-right: Bands */}
-            <Link to={'/services/' + CATEGORY_CARDS[1].slug}
-              style={{ gridColumn: '2', gridRow: '1', background: CATEGORY_CARDS[1].bg, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 16, textDecoration: 'none', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', fontSize: '3rem', opacity: 0.15 }}>
-                {CATEGORY_CARDS[1].icon}
-              </span>
-              <span style={{ background: 'white', color: '#1F2937', fontWeight: 700, fontSize: '0.875rem', padding: '5px 12px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>
-                {CATEGORY_CARDS[1].label}
-              </span>
-            </Link>
-
-            {/* Top-far-right: Photographers */}
-            <Link to={'/services/' + CATEGORY_CARDS[2].slug}
-              style={{ gridColumn: '3', gridRow: '1', background: CATEGORY_CARDS[2].bg, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 16, textDecoration: 'none', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', fontSize: '3rem', opacity: 0.15 }}>
-                {CATEGORY_CARDS[2].icon}
-              </span>
-              <span style={{ background: 'white', color: '#1F2937', fontWeight: 700, fontSize: '0.875rem', padding: '5px 12px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>
-                {CATEGORY_CARDS[2].label}
-              </span>
-            </Link>
-
-            {/* Bottom-right spans 2 cols: Catering */}
-            <Link to={'/services/' + CATEGORY_CARDS[3].slug}
-              style={{ gridColumn: '2 / 4', gridRow: '2', background: CATEGORY_CARDS[3].bg, borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 16, textDecoration: 'none', position: 'relative' }}>
-              <span style={{ position: 'absolute', top: '45%', left: '50%', transform: 'translate(-50%,-50%)', fontSize: '3rem', opacity: 0.15 }}>
-                {CATEGORY_CARDS[3].icon}
-              </span>
-              <span style={{ background: 'white', color: '#1F2937', fontWeight: 700, fontSize: '0.875rem', padding: '5px 12px', borderRadius: 6, display: 'inline-block', alignSelf: 'flex-start' }}>
-                {CATEGORY_CARDS[3].label}
-              </span>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* â•â•â• POPULAR NEAR YOU â•â•â• */}
-      <section style={{ background: '#F8FAF8', padding: '48px 24px 64px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1F2937', marginBottom: 4 }}>Popular near you</h2>
-          <p style={{ color: '#6B7280', fontSize: '0.9375rem', marginBottom: 28 }}>
-            Highly rated services available in your area
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-            {TOP_PROVIDERS.map((p, i) => (
-              <Link
-                key={p.category + '-' + p.id}
-                to={'/services/' + p.category + '/' + p.id}
-                style={{ background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid #F0F0F0', boxShadow: '0 1px 6px rgba(0,0,0,0.06)', textDecoration: 'none', display: 'flex', flexDirection: 'column' }}
-              >
-                {/* Thumbnail */}
-                <div style={{ height: 180, background: CARD_BG[i], position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '3rem', opacity: 0.28 }}>{p.catIcon}</span>
-                  <button
-                    onClick={e => toggleLike(p.id, e)}
-                    style={{ position: 'absolute', top: 10, right: 10, background: 'white', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 6px rgba(0,0,0,0.14)' }}
-                  >
-                    <Heart size={14}
-                      fill={liked[p.id] ? '#A7A5D0' : 'none'}
-                      stroke={liked[p.id] ? '#A7A5D0' : '#9CA3AF'} />
-                  </button>
-                </div>
-
-                {/* Info */}
-                <div style={{ padding: '12px 14px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <span style={{ color: '#F59E0B', fontSize: '0.75rem' }}>â…</span>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#374151' }}>
-                      {p.rating} (12 reviews)
-                    </span>
-                  </div>
-                  <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1F2937', lineHeight: 1.3, margin: 0 }}>
-                    {p.name}
-                  </h3>
-                  <p style={{ fontSize: '0.8125rem', color: '#6B7280', margin: 0 }}>đź“Ť {p.location}</p>
-                  <div style={{ marginTop: 'auto', paddingTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#8886B8', background: '#EEEDF9', padding: '2px 8px', borderRadius: 4 }}>
-                      {p.catLabel}
-                    </span>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#2B3132' }}>{p.price}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* â•â•â• FOOTER â•â•â• */}
-      <footer style={{ background: '#4A4E47', padding: '48px 24px 36px' }}>
-        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 32 }}>
-          {/* Brand */}
-          <div>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#7DA68D', letterSpacing: '-0.02em' }}>Meetiva</span>
-            <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.5)', marginTop: 10, lineHeight: 1.7, maxWidth: 220 }}>
-              Platforma za organizaciju nezaboravnih svadbi, proslava i poslovnih dogaÄ‘aja.
+      {/* ═══ HERO ═══ */}
+      <div className="w-full px-4 sm:px-8 py-4">
+        <section className="w-full py-16 sm:py-20 px-6 rounded-3xl text-center relative overflow-hidden" style={{ background: '#7DA68D' }}>
+          <div className="max-w-3xl mx-auto relative z-10">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-4">
+              Plan your perfect event
+            </h1>
+            <p className="text-white/85 text-sm sm:text-base max-w-lg mx-auto mb-10">
+              From intimate gatherings to massive corporate galas. Find everything you need in one place.
             </p>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', marginTop: 16 }}>Â© 2026 Meetiva</p>
+
+            {/* Search bar */}
+            <form onSubmit={handleSearch} className="w-full max-w-3xl mx-auto">
+              <div className="bg-white rounded-2xl flex flex-col md:flex-row items-stretch w-full overflow-hidden p-2 md:p-0 gap-2 md:gap-0 shadow-lg">
+
+                {/* KATEGORIJA */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <Search size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Što tražiš?</p>
+                    <select 
+  value={category} 
+  onChange={e => setCategory(e.target.value)}
+  className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                      style={{ color: '#7d8080' }}
+>
+  <option value="">Odaberi kategoriju...</option>
+  <option value="sale">Sale i prostori</option>
+  <option value="fotografi">Fotografi i snimatelji</option>
+  <option value="bendovi">BENDI & DJ-i</option>
+  <option value="catering">Catering i hrana</option>
+  <option value="dekoracije">Dekoracije i cvijeće</option>
+</select>
+                  </div>
+                </div>
+
+                {/* GDJE? */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <MapPin size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Gdje?</p>
+                    <input 
+                      type="text" 
+                      value={where} 
+                      onChange={e => setWhere(e.target.value)}
+                      placeholder="Grad"
+                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                      style={{ color: '#2B3132' }} 
+                    />
+                  </div>
+                </div>
+
+                {/* KADA? */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <Calendar size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Kada?</p>
+                    <input 
+                      type="text" 
+                      value={when} 
+                      onChange={e => setWhen(e.target.value)}
+                      placeholder="Datum"
+                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                      style={{ color: '#2B3132' }} 
+                    />
+                  </div>
+                </div>
+
+                {/* BUTTON */}
+                <button 
+                  type="submit"
+                  className="w-full md:w-auto px-8 py-3 font-semibold text-white text-sm rounded-xl md:rounded-none shrink-0 transition-all hover:opacity-90"
+                  style={{ background: '#505A5B', border: 'none', cursor: 'pointer' }}
+                >
+                  Search
+                </button>
+
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+
+      {/* ═══ BROWSE BY CATEGORY (BENTO GRID) ═══ */}
+      <section className="w-full px-4 sm:px-8 py-6">
+        <h2 className="text-xl font-extrabold mb-5" style={{ color: '#1F2937' }}>Browse by category</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto md:h-[380px]">
+          {/* 1. Wedding Halls */}
+          <Link 
+            to={'/services/' + CATEGORY_CARDS[0].slug}
+            className="relative md:row-span-2 rounded-2xl overflow-hidden group shadow-sm flex flex-col justify-end p-6 min-h-[240px] md:min-h-full"
+            style={{ textDecoration: 'none' }}>
+            <img src={CATEGORY_CARDS[0].img} alt={CATEGORY_CARDS[0].label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="relative z-10 text-white">
+              <h3 className="font-bold text-lg">{CATEGORY_CARDS[0].label}</h3>
+            </div>
+          </Link>
+
+          {/* 2. Bands & DJs */}
+          <Link 
+            to={'/services/' + CATEGORY_CARDS[1].slug}
+            className="relative rounded-2xl overflow-hidden group shadow-sm flex flex-col justify-end p-5 h-[180px] md:h-auto"
+            style={{ textDecoration: 'none' }}>
+            <img src={CATEGORY_CARDS[1].img} alt={CATEGORY_CARDS[1].label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="relative z-10 text-white">
+              <h3 className="font-bold text-base">{CATEGORY_CARDS[1].label}</h3>
+            </div>
+          </Link>
+
+          {/* 3. Photographers */}
+          <Link 
+            to={'/services/' + CATEGORY_CARDS[2].slug}
+            className="relative rounded-2xl overflow-hidden group shadow-sm flex flex-col justify-end p-5 h-[180px] md:h-auto"
+            style={{ textDecoration: 'none' }}>
+            <img src={CATEGORY_CARDS[2].img} alt={CATEGORY_CARDS[2].label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="relative z-10 text-white">
+              <h3 className="font-bold text-base">{CATEGORY_CARDS[2].label}</h3>
+            </div>
+          </Link>
+
+          {/* 4. Catering */}
+          <Link 
+            to={'/services/' + CATEGORY_CARDS[3].slug}
+            className="relative md:col-span-2 rounded-2xl overflow-hidden group shadow-sm flex flex-col justify-end p-5 h-[180px] md:h-auto"
+            style={{ textDecoration: 'none' }}>
+            <img src={CATEGORY_CARDS[3].img} alt={CATEGORY_CARDS[3].label} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            <div className="relative z-10 text-white">
+              <h3 className="font-bold text-base">{CATEGORY_CARDS[3].label}</h3>
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* ═══ POPULAR NEAR YOU ═══ */}
+      <section className="w-full py-8 px-4 sm:px-8 my-4" style={{ background: '#F9FAFB' }}>
+        <h2 className="text-xl font-extrabold mb-1" style={{ color: '#1F2937' }}>Popular near you</h2>
+        <p className="text-xs sm:text-sm mb-6" style={{ color: '#6B7280' }}>
+          Highly rated services available in your area
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {TOP_PROVIDERS.map((p, i) => (
+            <Link key={p.category + '-' + p.id} to={'/services/' + p.category + '/' + p.id}
+              className="flex flex-col rounded-2xl overflow-hidden bg-white hover:shadow-md transition-shadow"
+              style={{ border: '1px solid #F0F0F0', textDecoration: 'none' }}>
+
+              <div className="relative flex items-center justify-center h-36 w-full" style={{ background: CARD_BG[i] }}>
+                <span className="text-4xl opacity-30">{p.catIcon}</span>
+                <button onClick={e => toggleLike(p.id, e)}
+                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
+                  style={{ border: 'none', cursor: 'pointer' }}>
+                  <Heart size={14}
+                    fill={liked[p.id] ? '#A7A5D0' : 'none'}
+                    stroke={liked[p.id] ? '#A7A5D0' : '#9CA3AF'} />
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-1 flex-1 p-4">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs" style={{ color: '#F59E0B' }}>★</span>
+                  <span className="text-xs font-semibold" style={{ color: '#374151' }}>{p.rating} (12 reviews)</span>
+                </div>
+                <h3 className="text-sm font-bold leading-snug" style={{ color: '#1F2937' }}>{p.name}</h3>
+                <p className="text-xs" style={{ color: '#6B7280' }}>📍 {p.location}</p>
+                <div className="flex items-center justify-between mt-auto pt-3">
+                  <span className="text-[0.65rem] font-semibold px-2 py-0.5 rounded" style={{ color: '#8886B8', background: '#EEEDF9' }}>
+                    {p.catLabel}
+                  </span>
+                  <span className="text-xs font-bold" style={{ color: '#2B3132' }}>{p.price}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ FOOTER ═══ */}
+      <footer className="w-full py-10 px-8 mt-auto" style={{ background: '#4A4E47' }}>
+        <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="col-span-2 md:col-span-1">
+            <span className="text-lg font-extrabold text-white" style={{ letterSpacing: '-0.02em' }}>Meetiva</span>
+            <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Platforma za organizaciju nezaboravnih svadbi, proslava i poslovnih događaja.
+            </p>
+            <p className="text-[0.7rem] mt-3" style={{ color: 'rgba(255,255,255,0.4)' }}>© 2026 Meetiva</p>
           </div>
 
-          {/* Company / Legal / Support */}
           {Object.entries(FOOTER_LINKS).map(([title, items]) => (
             <div key={title}>
-              <h4 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.09em', color: 'rgba(255,255,255,0.45)', marginBottom: 14 }}>
+              <h4 className="text-[0.65rem] font-bold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
                 {title}
               </h4>
               {items.map(item => (
-                <p key={item} style={{ margin: '0 0 8px' }}>
-                  <Link to="/"
-                    style={{ color: 'rgba(255,255,255,0.68)', fontSize: '0.875rem', textDecoration: 'none' }}
-                    onMouseEnter={e => e.currentTarget.style.color = 'white'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.68)'}>
+                <p key={item} className="mb-1.5">
+                  <Link to="/" className="text-xs transition-colors" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>
                     {item}
                   </Link>
                 </p>
@@ -281,4 +285,3 @@ export default function Home() {
     </div>
   );
 }
-
