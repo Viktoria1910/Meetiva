@@ -170,7 +170,7 @@ export default function Home() {
 
       {/* ═══ BROWSE BY CATEGORY (BENTO GRID) ═══ */}
       <section className="w-full px-4 sm:px-8 py-6">
-        <h2 className="text-xl font-extrabold mb-5" style={{ color: '#1F2937' }}>Browse by category</h2>
+        <h2 className="text-xl font-extrabold mb-5" style={{ color: '#4e5053' }}>Izaberi kategoriju</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto md:h-[380px]">
           {/* 1. Wedding Halls */}
@@ -266,33 +266,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="w-full py-10 px-8 mt-auto" style={{ background: '#4A4E47' }}>
-        <div className="w-full grid grid-cols-2 md:grid-cols-4 gap-8">
-          <div className="col-span-2 md:col-span-1">
-            <span className="text-lg font-extrabold text-white" style={{ letterSpacing: '-0.02em' }}>Meetiva</span>
-            <p className="text-xs mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              Platforma za organizaciju nezaboravnih svadbi, proslava i poslovnih događaja.
-            </p>
-            <p className="text-[0.7rem] mt-3" style={{ color: 'rgba(255,255,255,0.4)' }}>© 2026 Meetiva</p>
-          </div>
-
-          {Object.entries(FOOTER_LINKS).map(([title, items]) => (
-            <div key={title}>
-              <h4 className="text-[0.65rem] font-bold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                {title}
-              </h4>
-              {items.map(item => (
-                <p key={item} className="mb-1.5">
-                  <Link to="/" className="text-xs transition-colors" style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>
-                    {item}
-                  </Link>
-                </p>
-              ))}
-            </div>
-          ))}
-        </div>
-      </footer>
     </div>
   );
 }

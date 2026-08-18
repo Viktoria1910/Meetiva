@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap');
 @import 'tailwindcss';
+
 
 @theme {
   --color-sage:          #7DA68D;
@@ -29,5 +31,5 @@
 body {
   background-color: var(--bg-page);
   color: var(--ink);
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Sant Serif', serif !important;
 }

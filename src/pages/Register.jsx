@@ -29,7 +29,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -66,7 +66,7 @@ export default function Register() {
 
     try {
       setLoading(true);
-      const res = await register({
+      const res = await signup({
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -80,6 +80,7 @@ export default function Register() {
         navigate(formData.role === 'provider' ? '/provider-setup' : '/dashboard');
       }
     } catch (err) {
+      console.error("DETALJNA GREŠKA:", err);
       setError('Došlo je do pogreške pri registraciji.');
     } finally {
       setLoading(false);

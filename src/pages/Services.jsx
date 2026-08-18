@@ -1,17 +1,32 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Calendar, Star, SlidersHorizontal, ArrowLeft } from 'lucide-react';
+import { 
+  Search, 
+  MapPin, 
+  Calendar, 
+  Star, 
+  ArrowLeft,
+  Camera,
+  Music,
+  Building2,
+  Utensils,
+  Flower2,
+  Mic2,
+  Car,
+  Cake,
+  ChevronRight
+} from 'lucide-react';
 import { categoryData } from '../utils/categoryData';
 
 const CATEGORIES = [
-  { slug: 'fotografi',  label: 'Fotografi i snimatelji', icon: '📷', count: 24, bg: 'from-emerald-50 to-teal-100/50' },
-  { slug: 'glazba',      label: 'Bendovi & DJ-i',           icon: '🎸', count: 18, bg: 'from-purple-50 to-indigo-100/50' },
-  { slug: 'susedne-sale',label: 'Sale i prostori',        icon: '🏛️', count: 32, bg: 'from-blue-50 to-slate-100/50' },
-  { slug: 'catering',   label: 'Catering i hrana',       icon: '🍽️', count: 21, bg: 'from-amber-50 to-orange-100/50' },
-  { slug: 'dekoracije', label: 'Dekoracije i cvijeće',   icon: '🌸', count: 19, bg: 'from-rose-50 to-pink-100/50' },
-  { slug: 'voditelji',  label: 'Voditelji',               icon: '🎤', count: 11, bg: 'from-sky-50 to-cyan-100/50' },
-  { slug: 'prijevoz',   label: 'Prijevoz',               icon: '🚗', count: 9,  bg: 'from-gray-50 to-slate-200/50' },
-  { slug: 'torte',      label: 'Torte i slatkiši',       icon: '🎂', count: 14, bg: 'from-orange-50 to-amber-100/50' },
+  { slug: 'fotografi',   label: 'Fotografi i snimatelji', Icon: Camera },
+  { slug: 'glazba',      label: 'Bendovi & DJ-i',         Icon: Music },
+  { slug: 'susedne-sale',label: 'Sale i prostori',        Icon: Building2 },
+  { slug: 'catering',    label: 'Catering i hrana',       Icon: Utensils },
+  { slug: 'dekoracije',  label: 'Dekoracije i cvijeće',   Icon: Flower2 },
+  { slug: 'voditelji',   label: 'Voditelji',              Icon: Mic2 },
+  { slug: 'prijevoz',    label: 'Prijevoz',               Icon: Car },
+  { slug: 'torte',       label: 'Torte i slatkiši',       Icon: Cake },
 ];
 
 export default function Services() {
@@ -35,14 +50,19 @@ export default function Services() {
 
   // Prikupljanje SVIH pružatelja iz categoryData
   const allProviders = Object.entries(categoryData).flatMap(([catKey, catVal]) =>
-    catVal.providers.map(p => ({
+    (catVal.providers || []).map(p => ({
       ...p,
       categoryKey: catKey,
       categoryLabel: catVal.label,
       img: p.img || 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=800',
-      tags: p.tags || ['Top Rated', 'Verified']
+      tags: p.tags || []
     }))
   );
+
+  // Funkcija za dinamičko dohvaćanje broja pružatelja po kategoriji
+  const getCategoryCount = (slug) => {
+    return categoryData[slug]?.providers?.length || 0;
+  };
 
   const isSearching = categoryParam || whereParam || whenParam;
 
@@ -68,33 +88,33 @@ export default function Services() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F9F6]">
+    <div className="min-h-screen flex flex-col bg-[#F7F9F7]">
 
       {/* Header sa Search Barom */}
-      <div className="bg-[#2D4A3E] py-12 px-4 sm:px-8">
+      <div className="bg-[#537362] py-10 px-4 sm:px-8 border-b border-[#435E4F]">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mb-2">
             {isSearching ? 'Rezultati pretraživanja' : 'Sve kategorije usluga'}
           </h1>
-          <p className="text-gray-300 text-sm mb-8">
+          <p className="text-emerald-100/80 text-xs sm:text-sm mb-6">
             {isSearching 
               ? `Pronađeno ${filteredProviders.length} pružatelja usluga` 
               : 'Pronađi savršenog pružatelja usluge za tvoj događaj'}
           </p>
 
-          {/* Tražilica (Search Bar) */}
+          {/* Tražilica */}
           <form onSubmit={handleFilterSubmit} className="w-full">
-            <div className="bg-white rounded-2xl md:rounded-3xl p-2 md:p-3 shadow-xl flex flex-col md:flex-row items-stretch gap-2">
+            <div className="bg-white rounded-2xl p-2 sm:p-2.5 shadow-lg flex flex-col md:flex-row items-stretch gap-2 border border-[#E5E9E6]">
 
               {/* KATEGORIJA */}
-              <div className="flex items-center gap-3 flex-1 px-4 py-2.5 md:border-r border-gray-100">
-                <Search size={18} className="text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2.5 flex-1 px-3 py-2 md:border-r border-gray-100">
+                <Search size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
-                  <p className="text-[0.65rem] font-bold uppercase tracking-wider text-gray-400">Što tražiš?</p>
+                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-gray-400">Kategorija</p>
                   <select 
                     value={category} 
                     onChange={e => setCategory(e.target.value)}
-                    className="w-full border-none outline-none text-sm font-semibold bg-transparent text-gray-800 cursor-pointer"
+                    className="w-full border-none outline-none text-xs font-semibold bg-transparent text-gray-800 cursor-pointer"
                   >
                     <option value="">Sve kategorije</option>
                     <option value="sale">Sale i prostori</option>
@@ -107,38 +127,38 @@ export default function Services() {
               </div>
 
               {/* GDJE */}
-              <div className="flex items-center gap-3 flex-1 px-4 py-2.5 md:border-r border-gray-100">
-                <MapPin size={18} className="text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2.5 flex-1 px-3 py-2 md:border-r border-gray-100">
+                <MapPin size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
-                  <p className="text-[0.65rem] font-bold uppercase tracking-wider text-gray-400">Gdje?</p>
+                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-gray-400">Lokacija</p>
                   <input 
                     type="text" 
                     value={where} 
                     onChange={e => setWhere(e.target.value)}
                     placeholder="Grad ili regija"
-                    className="w-full border-none outline-none text-sm font-semibold text-gray-800 placeholder-gray-400 bg-transparent" 
+                    className="w-full border-none outline-none text-xs font-semibold text-gray-800 placeholder-gray-400 bg-transparent" 
                   />
                 </div>
               </div>
 
               {/* KADA */}
-              <div className="flex items-center gap-3 flex-1 px-4 py-2.5">
-                <Calendar size={18} className="text-gray-400 shrink-0" />
+              <div className="flex items-center gap-2.5 flex-1 px-3 py-2">
+                <Calendar size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
-                  <p className="text-[0.65rem] font-bold uppercase tracking-wider text-gray-400">Kada?</p>
+                  <p className="text-[0.6rem] font-bold uppercase tracking-wider text-gray-400">Datum</p>
                   <input 
                     type="text" 
                     value={when} 
                     onChange={e => setWhen(e.target.value)}
                     placeholder="Datum događaja"
-                    className="w-full border-none outline-none text-sm font-semibold text-gray-800 placeholder-gray-400 bg-transparent" 
+                    className="w-full border-none outline-none text-xs font-semibold text-gray-800 placeholder-gray-400 bg-transparent" 
                   />
                 </div>
               </div>
 
               <button 
                 type="submit"
-                className="px-8 py-3.5 bg-[#2D4A3E] hover:bg-[#233A31] text-white font-bold text-sm rounded-xl md:rounded-2xl transition-all shadow-md shrink-0"
+                className="px-6 py-3 bg-[#6B8E7B] hover:bg-[#537362] text-white font-semibold text-xs rounded-xl transition-colors shadow-sm shrink-0"
               >
                 Pretraži
               </button>
@@ -149,93 +169,81 @@ export default function Services() {
       </div>
 
       {/* Sadržaj stranice */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-10 w-full flex-1">
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 w-full flex-1">
         {isSearching ? (
           <div>
-            {/* Poništi filtere gumb */}
             <div className="flex justify-between items-center mb-6">
               <button 
                 onClick={() => setSearchParams({})} 
-                className="flex items-center gap-2 text-sm font-bold text-[#2D4A3E] hover:underline"
+                className="flex items-center gap-2 text-xs font-semibold text-[#8880B6] hover:text-[#6E669E] transition-colors"
               >
-                <ArrowLeft size={16} /> Prikaži sve kategorije
+                <ArrowLeft size={15} /> Prikaži sve kategorije
               </button>
             </div>
 
-            {/* Lista filtriranih pružatelja (Novi kartični stil) */}
             {filteredProviders.length > 0 ? (
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredProviders.map(provider => (
                   <div 
                     key={provider.categoryKey + '-' + provider.id}
-                    className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row gap-6"
+                    className="bg-white rounded-2xl border border-[#E5E9E6] p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                   >
-                    {/* Lijevo: Slika */}
-                    <div className="relative w-full md:w-64 h-48 md:h-52 shrink-0 rounded-2xl overflow-hidden bg-gray-100">
-                      <img 
-                        src={provider.img} 
-                        alt={provider.name} 
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white text-[0.65rem] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
-                        {provider.categoryLabel}
-                      </span>
+                    <div>
+                      <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gray-100 mb-4">
+                        <img 
+                          src={provider.img} 
+                          alt={provider.name} 
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute top-3 left-3 bg-[#537362]/90 backdrop-blur-md text-white text-[0.65rem] font-semibold px-2.5 py-1 rounded-md tracking-wide">
+                          {provider.categoryLabel}
+                        </span>
+                      </div>
+
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div>
+                          <h2 className="text-lg font-bold text-gray-800 leading-snug">
+                            {provider.name}
+                          </h2>
+                          <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                            <MapPin size={13} className="text-[#6B8E7B]" /> {provider.location}
+                          </p>
+                        </div>
+
+                        <div className="bg-[#F3F2F9] text-[#8880B6] text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 shrink-0">
+                          <Star size={12} className="fill-[#8880B6] text-[#8880B6]" />
+                          <span>{provider.rating || 5.0}</span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-4 leading-relaxed">
+                        {provider.desc}
+                      </p>
                     </div>
 
-                    {/* Desno: Detalji */}
-                    <div className="flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <h2 className="text-xl font-bold text-gray-900 leading-snug">
-                              {provider.name}
-                            </h2>
-                            <p className="text-xs text-gray-400 flex items-center gap-1 mt-1">
-                              <MapPin size={13} className="text-gray-400" /> {provider.location} • <span className="font-semibold text-gray-700">{provider.price}</span>
-                            </p>
-                          </div>
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between mt-2">
+                      <span className="text-xs font-semibold text-gray-700">
+                        {provider.price || 'Na upit'}
+                      </span>
 
-                          {/* Green Rating Badge */}
-                          <div className="bg-[#EBF5EF] text-[#2D4A3E] font-extrabold text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 shrink-0">
-                            <Star size={13} className="fill-[#2D4A3E] text-[#2D4A3E]" />
-                            <span>{provider.rating || 4.9}</span>
-                            <span className="text-gray-400 font-normal text-[0.7rem]">(12)</span>
-                          </div>
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-gray-600 line-clamp-2 mt-3 leading-relaxed">
-                          {provider.desc || 'Profesionalne usluge prilagođene vašim željama i potrebama.'}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center justify-between gap-4 mt-5 pt-4 border-t border-gray-50">
-                        <div className="flex flex-wrap gap-2">
-                          {provider.tags.map(tag => (
-                            <span key={tag} className="text-[0.7rem] font-medium bg-gray-100 text-gray-600 px-2.5 py-1 rounded-md">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-
-                        <Link 
-                          to={`/services/${provider.categoryKey}/${provider.id}`}
-                          className="w-full sm:w-auto px-6 py-2.5 bg-[#2D4A3E] hover:bg-[#233A31] text-white text-xs font-bold rounded-xl text-center transition-colors shadow-sm"
-                          style={{ textDecoration: 'none' }}
-                        >
-                          Pogledaj detalje
-                        </Link>
-                      </div>
+                      <Link 
+                        to={`/services/${provider.categoryKey}/${provider.id}`}
+                        className="px-4 py-2 bg-[#9F98C7] hover:bg-[#8880B6] text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        Pogledaj detalje <ChevronRight size={14} />
+                      </Link>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-lg font-bold text-gray-700">Nema pronađenih rezultata</p>
-                <p className="text-sm text-gray-400 mt-1">Pokušajte promijeniti parametre pretrage ili lokaciju</p>
+              <div className="text-center py-16 bg-white rounded-2xl border border-[#E5E9E6]">
+                <p className="text-base font-semibold text-gray-700">Nema pronađenih rezultata</p>
+                <p className="text-xs text-gray-400 mt-1">Pokušajte promijeniti parametre pretrage</p>
                 <button 
                   onClick={() => setSearchParams({})} 
-                  className="mt-5 px-6 py-2.5 bg-[#2D4A3E] text-white text-xs font-bold rounded-xl"
+                  className="mt-4 px-5 py-2 bg-[#9F98C7] hover:bg-[#8880B6] text-white text-xs font-semibold rounded-lg transition-colors"
                 >
                   Poništi pretragu
                 </button>
@@ -243,34 +251,37 @@ export default function Services() {
             )}
           </div>
         ) : (
-          /* Mreža svih kategorija (Grid) kad nema pretrage */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {CATEGORIES.map(c => (
-              <Link 
-                key={c.slug} 
-                to={'/services/' + c.slug}
-                className="group bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
-                style={{ textDecoration: 'none' }}
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${c.bg} flex items-center justify-center text-3xl mb-6 shadow-inner`}>
-                  {c.icon}
-                </div>
+          /* Mreža kategorija s dinamičkim brojem pružatelja */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {CATEGORIES.map(({ slug, label, Icon }) => {
+              const count = getCategoryCount(slug);
+              return (
+                <Link 
+                  key={slug} 
+                  to={'/services/' + slug}
+                  className="group bg-white rounded-2xl p-5 border border-[#E5E9E6] shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 flex flex-col justify-between"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <div>
+                    <div className="w-12 h-12 rounded-xl bg-[#F0F4F1] flex items-center justify-center text-[#537362] mb-4 group-hover:bg-[#6B8E7B] group-hover:text-white transition-colors">
+                      <Icon size={22} />
+                    </div>
 
-                <div>
-                  <h2 className="font-bold text-lg text-gray-900 group-hover:text-[#2D4A3E] transition-colors">
-                    {c.label}
-                  </h2>
-                  <p className="text-xs font-medium text-gray-400 mt-1">
-                    {c.count} pružatelja usluga
-                  </p>
-                </div>
+                    <h2 className="font-bold text-base text-gray-800 group-hover:text-[#537362] transition-colors">
+                      {label}
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {count === 0 ? 'Nema pružatelja' : `${count} ${count === 1 ? 'pružatelj' : 'pružatelja'}`}
+                    </p>
+                  </div>
 
-                <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between text-xs font-bold text-[#2D4A3E]">
-                  <span>Istraži kategoriju</span>
-                  <span className="text-base group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </Link>
-            ))}
+                  <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-semibold text-[#8880B6]">
+                    <span>Istraži</span>
+                    <ChevronRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

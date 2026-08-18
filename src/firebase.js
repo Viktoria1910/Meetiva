@@ -1,16 +1,20 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAt4UUtYHbGE2RizDXB-oivaUz7438isRU",
-  authDomain: "meetiva-366d2.firebaseapp.com",
-  projectId: "meetiva-366d2",
-  storageBucket: "meetiva-366d2.firebasestorage.app",
-  messagingSenderId: "247732431497",
-  appId: "1:247732431497:web:e2e0f6835f20b7c0f77458"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const app = initializeApp(firebaseConfig);
+// Inicijalizacija Firebase aplikacije
+export const app = initializeApp(firebaseConfig);
+
+// Inicijalizacija i izvoz Auth servisa
 export const auth = getAuth(app);
+
 export const db = getFirestore(app);
