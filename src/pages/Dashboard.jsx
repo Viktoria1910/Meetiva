@@ -1,6 +1,5 @@
 ﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 
 const STATUS_COLORS = {
@@ -10,7 +9,7 @@ const STATUS_COLORS = {
 };
 
 export default function Dashboard() {
-  const { isLoggedIn, user } = useAuth();
+  const { currentUser, loading } = useAuth();
   const navigate = useNavigate();
 
   const [reservations] = useState(() => {
@@ -18,16 +17,31 @@ export default function Dashboard() {
     catch { return []; }
   });
 
-  if (!isLoggedIn) {
+  // 1. Prikaži učitavanje dok Firebase ne dohvati stanje
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-        <Navbar />
+
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500 font-medium text-sm">Učitavanje...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Ako provjera završi, a korisnik nije prijavljen
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center bg-white rounded-2xl p-10" style={{ border: '1px solid #DDE3DE' }}>
             <p className="text-lg font-bold mb-2" style={{ color: '#2B3132' }}>Niste prijavljeni</p>
+            <p className="text-sm mb-4" style={{ color: '#8A9192' }}>Prijavite se da biste pristupili nadzornoj ploči.</p>
             <button onClick={() => navigate('/login')}
-              className="px-6 py-2 rounded-full font-semibold text-white text-sm mt-2"
-              style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}>Prijava</button>
+              className="px-6 py-2 rounded-full font-semibold text-white text-sm"
+              style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}>
+              Prijava
+            </button>
           </div>
         </div>
       </div>
@@ -36,12 +50,11 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
       <div style={{ background: '#505A5B', padding: '32px 24px' }}>
-          <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
+        <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <h1 className="text-2xl font-extrabold text-white">Moje rezervacije</h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 2 }}>
-            Dobrodošao/la, {user.name}
+            Dobrodošao/la, {currentUser.displayName || currentUser.email}
           </p>
         </div>
       </div>

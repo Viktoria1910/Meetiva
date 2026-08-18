@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Star, MapPin, CheckCircle, SlidersHorizontal } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
 import { getApprovedProviders } from '../utils/providerStorage';
 
@@ -73,7 +72,6 @@ export default function CategoryPage() {
 
   if (!data) return (
     <div className="min-h-screen flex flex-col bg-[#F9FAF8]">
-      <Navbar />
       <div className="max-w-4xl mx-auto px-6 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-800">Kategorija nije pronađena</h1>
         <p className="text-sm text-gray-500 mt-2">Kategorija "{rawCategory}" trenutno ne postoji.</p>
@@ -114,7 +112,7 @@ export default function CategoryPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9F6]">
-      <Navbar />
+
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 w-full flex-1">
         <div className="flex flex-col lg:flex-row gap-10 items-start">

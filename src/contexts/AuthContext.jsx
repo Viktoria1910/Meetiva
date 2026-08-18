@@ -1,104 +1,113 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
+import { 
+  onAuthStateChanged, 
+  signOut, 
+  updateProfile, 
+  updatePassword 
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase'; // prilagodite putanju do vaše firebase konfiguracije
 
-const AuthContext = createContext(null);
-
-const ADMIN_EMAIL = 'admin@meetiva.com';
-
-async function fetchProfile(uid) {
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (snap.exists()) return { uid, ...snap.data() };
-  return null;
-}
-
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const profile = await fetchProfile(firebaseUser.uid);
-        setUser(profile || { uid: firebaseUser.uid, email: firebaseUser.email, role: 'user' });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
-  const logout = async () => {
-    await signOut(auth);
-    setUser(null);
-  };
-
-  const register = async ({ name, email, password, role, category }) => {
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const profile = {
-        name,
-        email,
-        role: email === ADMIN_EMAIL ? 'admin' : role,
-        category: role === 'provider' ? category : null,
-        providerStatus: role === 'provider' ? 'setup' : null,
-        createdAt: serverTimestamp(),
-      };
-      await setDoc(doc(db, 'users', cred.user.uid), profile);
-      const newUser = { uid: cred.user.uid, ...profile };
-      setUser(newUser);
-      return { user: newUser };
-    } catch (err) {
-      if (err.code === 'auth/email-already-in-use') return { error: 'Email već postoji.' };
-      if (err.code === 'auth/weak-password') return { error: 'Lozinka mora imati najmanje 6 znakova.' };
-      return { error: 'Registracija nije uspjela. Pokušaj opet.' };
-    }
-  };
-
-  const demoLogin = async (email, password) => {
-    try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const profile = await fetchProfile(cred.user.uid);
-      const u = profile || { uid: cred.user.uid, email, role: 'user' };
-      setUser(u);
-      return { user: u };
-    } catch (err) {
-      const codes = ['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-email'];
-      if (codes.includes(err.code)) return { error: 'Neispravna email adresa ili lozinka.' };
-      return { error: 'Prijava nije uspjela. Pokušaj opet.' };
-    }
-  };
-
-  const updateUser = async (updates) => {
-    if (!user) return;
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    try { await updateDoc(doc(db, 'users', user.uid), updates); } catch (_) {}
-  };
-
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#F4F5F2' }}>
-        <div style={{ width: 36, height: 36, borderRadius: '50%', border: '3px solid #DDE3DE', borderTopColor: '#A7A5D0', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
-
-  return (
-    <AuthContext.Provider value={{ user, isLoggedIn: !!user, loading, logout, demoLogin, register, updateUser }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
+const AuthContext = createContext();
 
 export function useAuth() {
   return useContext(AuthContext);
+}
+
+export function AuthProvider({ children }) {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserProfile({ uid: user.uid, ...userDoc.data() });
+          } else {
+            setUserProfile({
+              uid: user.uid,
+              name: user.displayName || '',
+              email: user.email,
+              role: 'user'
+            });
+          }
+        } catch (error) {
+          console.error("Greška pri dohvaćanju profila iz Firestorea:", error);
+          setUserProfile({
+            uid: user.uid,
+            name: user.displayName || '',
+            email: user.email,
+            role: 'user'
+          });
+        }
+      } else {
+        setUserProfile(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Funkcija za odjavu
+  const logout = () => {
+    return signOut(auth);
+  };
+
+  // Ažuriranje osobnih podataka
+  const updateUserData = async ({ name, email }) => {
+    if (!currentUser) return;
+
+    // 1. Ažuriramo profil u Firebase Auth
+    if (name && name !== currentUser.displayName) {
+      await updateProfile(currentUser, { displayName: name });
+    }
+
+    // 2. Ažuriramo dokument u Firestore "users" kolekciji
+    const userDocRef = doc(db, 'users', currentUser.uid);
+    await updateDoc(userDocRef, { name, email });
+
+    // 3. Ažuriramo lokalno stanje
+    setUserProfile(prev => ({ ...prev, name, email }));
+    setCurrentUser(auth.currentUser);
+  };
+
+  // Promjena lozinke
+  const updatePasswordUser = async (newPassword) => {
+    if (!currentUser) return;
+    await updatePassword(currentUser, newPassword);
+  };
+
+  // Kombinirani 'user' objekt koji objedinjuje Auth i Firestore podatke
+  const combinedUser = currentUser ? {
+    uid: currentUser.uid,
+    email: currentUser.email,
+    name: userProfile?.name || currentUser.displayName || 'Korisnik',
+    role: userProfile?.role || 'user',
+    providerStatus: userProfile?.providerStatus || null,
+    category: userProfile?.category || null,
+    ...userProfile
+  } : null;
+
+  const value = {
+    currentUser,
+    userProfile,
+    user: combinedUser,
+    isLoggedIn: !!currentUser,
+    loading,
+    logout,
+    updateUserData,
+    updatePasswordUser
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 }

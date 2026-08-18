@@ -1,39 +1,99 @@
+// src/App.jsx
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
-import Home         from './pages/Home';
-import Services     from './pages/Services';
-import CategoryPage from './pages/CategoryPage';
-import ProviderPage from './pages/ProviderPage';
-import Login        from './pages/Login';
-import Register     from './pages/Register';
-import Dashboard    from './pages/Dashboard';
-import Messages     from './pages/Messages';
-import Profile      from './pages/Profile';
-import Search       from './pages/Search';
-import ProviderSetup from './pages/ProviderSetup';
-import AdminPanel   from './pages/AdminPanel';
+// Layout
+import Layout from './components/Layout';
+
+// Stranice
+import Home                  from './pages/Home';
+import Services              from './pages/Services';
+import CategoryPage          from './pages/CategoryPage';
+import ProviderPage          from './pages/ProviderPage';
+import Login                 from './pages/Login';
+import Register              from './pages/Register';
+import Dashboard             from './pages/Dashboard';
+import Messages              from './pages/Messages';
+import Profile               from './pages/Profile';
+import Search                from './pages/Search';
+import ProviderSetup         from './pages/ProviderSetup';
+import AdminPanel            from './pages/AdminPanel';
+import AdminPendingProviders from './pages/AdminPendingProviders';
+
+import ProtectedRoute from './components/ProtectedRoute';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/"                          element={<Home />} />
-          <Route path="/services"                  element={<Services />} />
-          <Route path="/services/:category"        element={<CategoryPage />} />
-          <Route path="/services/:category/:id"    element={<ProviderPage />} />
-          <Route path="/login"                     element={<Login />} />
-          <Route path="/register"                  element={<Register />} />
-          <Route path="/dashboard"                 element={<Dashboard />} />
-          <Route path="/messages"                  element={<Messages />} />
-          <Route path="/profile"                   element={<Profile />} />
-          <Route path="/search"                    element={<Search />} />
-          <Route path="/provider-setup"             element={<ProviderSetup />} />
-          <Route path="/admin"                      element={<AdminPanel />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <Routes>
+      {/* Glavni Layout - Sve rute unutar njega dobivaju Navbar i Footer */}
+      <Route element={<Layout />}>
+        {/* Javne rute */}
+        <Route path="/"                          element={<Home />} />
+        <Route path="/services"                  element={<Services />} />
+        <Route path="/services/:category"        element={<CategoryPage />} />
+        <Route path="/services/:category/:id"    element={<ProviderPage />} />
+        <Route path="/login"                     element={<Login />} />
+        <Route path="/register"                  element={<Register />} />
+        <Route path="/search"                    element={<Search />} />
+
+        {/* Zaštićene rute */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/messages" 
+          element={
+            <ProtectedRoute>
+              <Messages />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/provider-setup" 
+          element={
+            <ProtectedRoute>
+              <ProviderSetup />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <AdminPanel />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin/pending-providers" 
+          element={
+            <ProtectedRoute>
+              <AdminPendingProviders />
+            </ProtectedRoute>
+          } 
+        />
+      </Route>
+
+      {/* Rute izvan Layouta (ako imate npr. poseban Fullscreen Checkout ili Login bez Navbara) */}
+      {/* <Route path="/minimal-login" element={<Login />} /> */}
+
+      {/* Preusmjeravanja */}
+      <Route path="/categories" element={<Navigate to="/services" replace />} />
+      <Route path="/bookings"   element={<Navigate to="/dashboard" replace />} />
+      <Route path="*"           element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

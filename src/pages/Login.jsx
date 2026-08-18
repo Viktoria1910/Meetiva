@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
@@ -29,7 +28,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
+
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="bg-white rounded-3xl shadow-sm p-8 sm:p-10 w-full max-w-md" style={{ border: '1px solid #DDE3DE' }}>
           <h2 className="text-2xl font-extrabold mb-1" style={{ color: '#2B3132' }}>Dobrodošli natrag</h2>

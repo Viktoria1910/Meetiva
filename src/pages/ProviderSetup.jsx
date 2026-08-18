@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Send } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { categoryData } from '../utils/categoryData';
 import { upsertProvider, getProviderByUserId } from '../utils/providerStorage';
@@ -92,7 +91,6 @@ export default function ProviderSetup() {
   if (loadingData) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-        <Navbar />
         <div className="flex-1 flex items-center justify-center">
           <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid #DDE3DE', borderTopColor: '#A7A5D0', animation: 'spin 0.8s linear infinite' }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -104,7 +102,6 @@ export default function ProviderSetup() {
   if (submitted || user.providerStatus === 'pending') {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-        <Navbar />
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center" style={{ border: '1px solid #DDE3DE' }}>
             <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#EEEDF9' }}>
@@ -128,7 +125,6 @@ export default function ProviderSetup() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
       <div style={{ background: '#7DA68D', padding: '28px 24px' }}>
         <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1 }}>

@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "firebase": "^12.13.0",
     "lucide-react": "^1.25.0",
     "react": "^19.2.5",
@@ -22,10 +23,13 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.5.4",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
     "vite": "^8.0.10"
   }
 }

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { MessageSquare, Star, MapPin, ArrowLeft } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
 import { useAuth } from '../contexts/AuthContext';
+import { auth, db } from '../firebase';
 
 const GALLERY_GRADIENTS = [
   'linear-gradient(135deg,#7DA68D,#BDD2C4)',
@@ -35,7 +35,7 @@ export default function ProviderPage() {
 
   if (!provider) return (
     <div className="min-h-screen" style={{ background: '#F4F5F2' }}>
-      <Navbar />
+  
       <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-16 text-center">
         <h1 className="text-2xl font-bold" style={{ color: '#2B3132' }}>Pružatelj nije pronađen</h1>
         <Link to="/services" className="mt-4 inline-block text-sm font-semibold" style={{ color: '#A7A5D0' }}>
@@ -50,7 +50,6 @@ export default function ProviderPage() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
 
       {/* Breadcrumb */}
       <div className="max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-12 py-3 w-full">

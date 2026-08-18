@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search as SearchIcon } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
 
 const ALL_PROVIDERS = Object.entries(categoryData).flatMap(([cat, d]) =>
@@ -19,7 +18,6 @@ export default function Search() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
       <div style={{ background: '#7DA68D', padding: '36px 24px' }}>
           <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <h1 className="text-2xl font-extrabold text-white mb-4">Pretraži usluge</h1>

@@ -1,8 +1,8 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar, Heart } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
+import { Camera, Wine, Music, Sparkles, PartyPopper } from 'lucide-react';
 
 const CATEGORY_CARDS = [
   { 
@@ -72,90 +72,101 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white w-full flex flex-col">
-      <Navbar />
+
 
       {/* ═══ HERO ═══ */}
-      <div className="w-full px-4 sm:px-8 py-4">
-        <section className="w-full py-16 sm:py-20 px-6 rounded-3xl text-center relative overflow-hidden" style={{ background: '#7DA68D' }}>
-          <div className="max-w-3xl mx-auto relative z-10">
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-4">
-              Plan your perfect event
-            </h1>
-            <p className="text-white/85 text-sm sm:text-base max-w-lg mx-auto mb-10">
-              From intimate gatherings to massive corporate galas. Find everything you need in one place.
-            </p>
+<div className="w-full px-4 sm:px-8 py-4">
+  <section className="w-full py-16 sm:py-20 px-6 rounded-3xl text-center relative overflow-hidden" style={{ background: '#7DA68D' }}>
+    
+    {/* Decorative background icons (suptilne ikonice u pozadini) */}
+    <div className="absolute inset-0 pointer-events-none select-none text-white/15 overflow-hidden">
+      <Camera className="absolute top-6 left-8 w-16 h-16 -rotate-12" />
+      <Wine className="absolute top-10 right-12 w-14 h-14 rotate-12" />
+      <Music className="absolute bottom-12 left-16 w-12 h-12 rotate-45" />
+      <Calendar className="absolute bottom-8 right-20 w-16 h-16 -rotate-12" />
+      <PartyPopper className="absolute top-1/2 left-4 -translate-y-1/2 w-10 h-10 -rotate-12 hidden sm:block" />
+      <Sparkles className="absolute top-1/2 right-6 -translate-y-1/2 w-10 h-10 rotate-12 hidden sm:block" />
+      <Heart className="absolute top-4 left-1/3 w-8 h-8 rotate-12 opacity-60" />
+    </div>
 
-            {/* Search bar */}
-            <form onSubmit={handleSearch} className="w-full max-w-3xl mx-auto">
-              <div className="bg-white rounded-2xl flex flex-col md:flex-row items-stretch w-full overflow-hidden p-2 md:p-0 gap-2 md:gap-0 shadow-lg">
+    <div className="max-w-3xl mx-auto relative z-10">
+      <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-4">
+        Isplaniraj svoj događaj uz Meetivu
+      </h1>
+      <p className="text-white/85 text-sm sm:text-base max-w-lg mx-auto mb-10">
+        Od intimnih okupljanja do velikih korporativnih gala večera – pronađite sve što vam treba na jednom mjestu.      </p>
 
-                {/* KATEGORIJA */}
-                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-                  <Search size={18} className="text-gray-400 shrink-0" />
-                  <div className="min-w-0 text-left w-full">
-                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Što tražiš?</p>
-                    <select 
-  value={category} 
-  onChange={e => setCategory(e.target.value)}
-  className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                      style={{ color: '#7d8080' }}
->
-  <option value="">Odaberi kategoriju...</option>
-  <option value="sale">Sale i prostori</option>
-  <option value="fotografi">Fotografi i snimatelji</option>
-  <option value="bendovi">BENDI & DJ-i</option>
-  <option value="catering">Catering i hrana</option>
-  <option value="dekoracije">Dekoracije i cvijeće</option>
-</select>
-                  </div>
-                </div>
+      {/* Search bar */}
+      <form onSubmit={handleSearch} className="w-full max-w-3xl mx-auto">
+        <div className="bg-white rounded-2xl flex flex-col md:flex-row items-stretch w-full overflow-hidden p-2 md:p-0 gap-2 md:gap-0 shadow-lg">
 
-                {/* GDJE? */}
-                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-                  <MapPin size={18} className="text-gray-400 shrink-0" />
-                  <div className="min-w-0 text-left w-full">
-                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Gdje?</p>
-                    <input 
-                      type="text" 
-                      value={where} 
-                      onChange={e => setWhere(e.target.value)}
-                      placeholder="Grad"
-                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                      style={{ color: '#2B3132' }} 
-                    />
-                  </div>
-                </div>
-
-                {/* KADA? */}
-                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-                  <Calendar size={18} className="text-gray-400 shrink-0" />
-                  <div className="min-w-0 text-left w-full">
-                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Kada?</p>
-                    <input 
-                      type="text" 
-                      value={when} 
-                      onChange={e => setWhen(e.target.value)}
-                      placeholder="Datum"
-                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                      style={{ color: '#2B3132' }} 
-                    />
-                  </div>
-                </div>
-
-                {/* BUTTON */}
-                <button 
-                  type="submit"
-                  className="w-full md:w-auto px-8 py-3 font-semibold text-white text-sm rounded-xl md:rounded-none shrink-0 transition-all hover:opacity-90"
-                  style={{ background: '#505A5B', border: 'none', cursor: 'pointer' }}
-                >
-                  Search
-                </button>
-
-              </div>
-            </form>
+          {/* KATEGORIJA */}
+          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+            <Search size={18} className="text-gray-400 shrink-0" />
+            <div className="min-w-0 text-left w-full">
+              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Što tražiš?</p>
+              <select 
+                value={category} 
+                onChange={e => setCategory(e.target.value)}
+                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                style={{ color: '#788284' }}
+              >
+                <option value="">Odaberi kategoriju...</option>
+                <option value="sale">Sale i prostori</option>
+                <option value="fotografi">Fotografi i snimatelji</option>
+                <option value="bendovi">Bendovi & DJ-i</option>
+                <option value="catering">Catering i hrana</option>
+                <option value="dekoracije">Dekoracije i cvijeće</option>
+              </select>
+            </div>
           </div>
-        </section>
-      </div>
+
+          {/* GDJE? */}
+          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+            <MapPin size={18} className="text-gray-400 shrink-0" />
+            <div className="min-w-0 text-left w-full">
+              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Gdje?</p>
+              <input 
+                type="text" 
+                value={where} 
+                onChange={e => setWhere(e.target.value)}
+                placeholder="Grad"
+                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                style={{ color: '#2B3132' }} 
+              />
+            </div>
+          </div>
+
+          {/* KADA? */}
+          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+            <Calendar size={18} className="text-gray-400 shrink-0" />
+            <div className="min-w-0 text-left w-full">
+              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Kada?</p>
+              <input 
+                type="text" 
+                value={when} 
+                onChange={e => setWhen(e.target.value)}
+                placeholder="Datum"
+                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                style={{ color: '#2B3132' }} 
+              />
+            </div>
+          </div>
+
+          {/* BUTTON */}
+          <button 
+            type="submit"
+            className="w-full md:w-auto px-8 py-3 font-semibold text-white text-sm rounded-xl md:rounded-none shrink-0 transition-all hover:opacity-90 cursor-pointer"
+            style={{ background: '#A7A5D0', border: 'none' }}
+          >
+            Search
+          </button>
+
+        </div>
+      </form>
+    </div>
+  </section>
+</div>
 
       {/* ═══ BROWSE BY CATEGORY (BENTO GRID) ═══ */}
       <section className="w-full px-4 sm:px-8 py-6">

@@ -1,123 +1,135 @@
-import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, MessageSquare, LogOut } from 'lucide-react';
-import logo from '../assets/logo.png';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-
-const NAV_LINKS = [
-  { to: '/services', label: 'Kategorije' },
-];
-
-const LOGGED_IN_LINKS = [
-  { to: '/services',   label: 'Kategorije' },
-  { to: '/messages',   label: 'Poruke' },
-  { to: '/dashboard',  label: 'Moje rezervacije' },
-  { to: '/profile',    label: 'Moj profil' },
-];
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
 export default function Navbar() {
-  const { user, isLoggedIn, logout } = useAuth();
-  const location = useLocation();
+  const { currentUser, userProfile, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(0);
 
-  const links = isLoggedIn
-    ? user?.role === 'admin'
-      ? [{ to: '/admin', label: 'Admin panel' }]
-      : LOGGED_IN_LINKS
-    : NAV_LINKS;
+  // Slušatelj uživo (real-time) koji broji nove registracije samo ako je korisnik admin
+  useEffect(() => {
+    if (currentUser && userProfile?.role === 'admin') {
+      const q = query(
+        collection(db, 'users'),
+        where('role', '==', 'provider'),
+        where('approved', '==', false)
+      );
 
-  const isActive = (to) => location.pathname === to || location.pathname.startsWith(to + '/');
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        setPendingCount(snapshot.docs.length);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [currentUser, userProfile]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Greška pri odjavi:', error);
+    }
+  };
+
+  const isActive = (path) => location.pathname === path;
+
+  const navLinkStyle = (path) => ({
+    color: isActive(path) ? '#2B3132' : '#8A9192',
+    fontWeight: isActive(path) ? 600 : 500,
+    textDecoration: 'none',
+    transition: 'color 0.2s',
+  });
 
   return (
-    <nav style={{ background: '#FFFFFF', position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 1px 0 #DDE3DE' }}>
-      {/* Promijenjeno sa 'max-w-screen-xl mx-auto' u 'w-full' i dodan 'px-6 sm:px-8' za punu širinu ekrana */}
-      <div className="w-full px-6 sm:px-8 flex items-center gap-2" style={{ height: 60 }}>
-
-        {/* Logo */}
-        <Link to="/" className="flex-shrink-0 mr-3" style={{ textDecoration: 'none' }}>
-          <img src={logo} alt="Meetiva" style={{ height: 36, width: 'auto' }} />
+    <nav className="bg-white border-b sticky top-0 z-50 px-6 py-3 flex items-center justify-between" style={{ borderColor: '#DDE3DE' }}>
+      
+      {/* 1. Logo i glavne kartice */}
+      <div className="flex items-center gap-8">
+        <Link to="/" className="text-xl font-extrabold tracking-tight" style={{ color: '#2B3132', textDecoration: 'none' }}>
+          Meetiva
         </Link>
 
-        {/* Nav links — hidden on mobile, visible sm+ */}
-        <div className="hidden sm:flex items-center gap-1 overflow-x-auto">
-          {links.map(({ to, label }) => (
-            <Link
-              key={to}
-              to={to}
-              className="whitespace-nowrap px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 flex-shrink-0"
-              style={{
-                color:      isActive(to) ? '#A7A5D0' : '#505A5B',
-                background: isActive(to) ? 'rgba(167,165,208,0.15)' : 'transparent',
-              }}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
+        {/* Glavne kartice */}
+        <div className="hidden md:flex items-center gap-6 text-sm">
+          <Link to="/services" style={navLinkStyle('/services')}>
+            Kategorije
+          </Link>
+          <Link to="/messages" style={navLinkStyle('/messages')}>
+            Poruke
+          </Link>
+          <Link to="/dashboard" style={navLinkStyle('/dashboard')}>
+            Rezervacije
+          </Link>
 
-        {/* Right side */}
-        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-          {isLoggedIn ? (
-            <>
-              <button
-                onClick={() => navigate('/search')}
-                className="p-2 rounded-lg transition-all"
-                style={{ color: '#8A9192' }}
-                title="Pretraži"
-              >
-                <Search size={18} />
-              </button>
-              <button
-                onClick={() => navigate('/messages')}
-                className="p-2 rounded-lg transition-all"
-                style={{ color: '#8A9192' }}
-                title="Poruke"
-              >
-                <MessageSquare size={18} />
-              </button>
-              {/* Avatar */}
-              <Link to="/profile" className="flex items-center gap-2 ml-1">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0"
-                  style={{ background: '#A7A5D0' }}
-                >
-                  {user.name.charAt(0)}
-                </div>
-                <span className="text-sm font-medium hidden sm:block" style={{ color: '#2B3132' }}>{user.name.split(' ')[0]}</span>
-              </Link>
-              <button
-                onClick={logout}
-                className="p-2 rounded-lg ml-1 transition-all"
-                style={{ color: '#BDC5C6' }}
-                title="Odjavi se"
-              >
-                <LogOut size={16} />
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="px-4 py-1.5 rounded-full text-sm font-medium border-2 transition-all duration-200"
-                style={{ borderColor: '#A7A5D0', color: '#A7A5D0' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(167,165,208,0.15)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                Prijava
-              </Link>
-              <Link
-                to="/register"
-                className="px-4 py-1.5 rounded-full text-sm font-medium text-white transition-all duration-200"
-                style={{ background: '#A7A5D0' }}
-                onMouseEnter={e => e.currentTarget.style.background = '#8886B8'}
-                onMouseLeave={e => e.currentTarget.style.background = '#A7A5D0'}
-              >
-                Registracija
-              </Link>
-            </>
+          {/* Uloga: Pružatelj usluga */}
+          {userProfile?.role === 'provider' && (
+            <Link to="/provider-setup" style={navLinkStyle('/provider-setup')}>
+              Moj obrt
+            </Link>
+          )}
+
+          {/* Uloga: Admin */}
+          {userProfile?.role === 'admin' && (
+            <Link 
+              to="/admin/pending-providers" 
+              style={navLinkStyle('/admin/pending-providers')}
+              className="flex items-center gap-2"
+            >
+              <span>Nove registracije</span>
+              {pendingCount > 0 && (
+                <span className="px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
           )}
         </div>
       </div>
+
+      {/* 2. Desni dio - Profil ili Prijava/Registracija */}
+      <div className="flex items-center gap-4">
+        {currentUser ? (
+          <div className="flex items-center gap-4">
+            {/* Poveznica na stranicu profila */}
+            <Link to="/profile" className="flex items-center gap-2" style={{ textDecoration: 'none' }}>
+              <div 
+                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm"
+                style={{ background: '#A7A5D0' }}
+              >
+                {(userProfile?.name || currentUser.displayName || currentUser.email || 'K')[0].toUpperCase()}
+              </div>
+              <span className="hidden sm:inline text-sm font-medium" style={{ color: '#2B3132' }}>
+                {userProfile?.name || currentUser.displayName || 'Moj Profil'}
+              </span>
+            </Link>
+
+
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="text-sm font-semibold px-4 py-2 rounded-full transition-all"
+              style={{ color: '#505A5B', textDecoration: 'none' }}
+            >
+              Prijava
+            </Link>
+            <Link
+              to="/register"
+              className="text-sm font-semibold px-4 py-2 rounded-full text-white transition-all shadow-sm"
+              style={{ background: '#A7A5D0', textDecoration: 'none' }}
+            >
+              Registracija
+            </Link>
+          </div>
+        )}
+      </div>
+
     </nav>
   );
 }

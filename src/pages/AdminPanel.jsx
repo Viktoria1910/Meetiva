@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
-import Navbar from '../components/Navbar';
+import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
+import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { getProviders, updateProviderStatus } from '../utils/providerStorage';
 import { categoryData } from '../utils/categoryData';
 
 export default function AdminPanel() {
@@ -13,20 +13,71 @@ export default function AdminPanel() {
   const [loadingData, setLoadingData] = useState(true);
   const [filter, setFilter] = useState('pending');
 
-  useEffect(() => {
-    if (!isLoggedIn || user.role !== 'admin') { navigate('/'); return; }
-    getProviders().then(list => { setProviders(list); setLoadingData(false); });
-  }, [isLoggedIn]);
+  // Funkcija za dohvaćanje pružatelja iz Firestore baze
+  const fetchProviders = async () => {
+    try {
+      // Dohvaćamo sve korisnike kojima je uloga 'provider'
+      const q = query(collection(db, 'users'), where('role', '==', 'provider'));
+      const querySnapshot = await getDocs(q);
+      
+      const list = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          uid: docSnap.id,
+          providerName: data.name || '',
+          email: data.email || '',
+          businessName: data.businessName || data.name || '(bez naziva)',
+          category: data.category || '',
+          location: data.city || data.location || 'Nije uneseno',
+          basePrice: data.price || data.basePrice || '0',
+          desc: data.description || '',
+          packages: data.packages || [],
+          // Usklađujemo polje statusa (podržava providerStatus ili status)
+          status: data.status || data.providerStatus || 'pending'
+        };
+      });
 
-  const handle = async (uid, status) => {
-    await updateProviderStatus(uid, status);
-    getProviders().then(setProviders);
+      setProviders(list);
+    } catch (err) {
+      console.error("Greška pri dohvaćanju pružatelja:", err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoggedIn || user?.role !== 'admin') { 
+      navigate('/'); 
+      return; 
+    }
+    fetchProviders();
+  }, [isLoggedIn, user, navigate]);
+
+  // Ažuriranje statusa u Firebase Firestore-u
+  const handle = async (uid, newStatus) => {
+    try {
+      const providerRef = doc(db, 'users', uid);
+      // Ažuriramo i 'status' i 'providerStatus' radi usklađenosti
+      await updateDoc(providerRef, {
+        status: newStatus,
+        providerStatus: newStatus
+      });
+
+      // Osvježavamo lokalno stanje bez novog mrežnog poziva
+      setProviders(prev => 
+        prev.map(p => p.uid === uid ? { ...p, status: newStatus } : p)
+      );
+    } catch (err) {
+      console.error("Greška pri promjeni statusa:", err);
+      alert("Neuspješna promjena statusa.");
+    }
   };
 
   const filtered = filter === 'all' ? providers : providers.filter(p => p.status === filter);
+  
   const counts = {
     pending:  providers.filter(p => p.status === 'pending').length,
-    approved: providers.filter(p => p.status === 'approved').length,
+    approved: providers.filter(p => p.status === 'approved' || p.status === 'active').length,
     rejected: providers.filter(p => p.status === 'rejected').length,
   };
 
@@ -34,6 +85,7 @@ export default function AdminPanel() {
     const styles = {
       pending:  { bg: '#FFF3CD', color: '#856404', label: 'Čeka' },
       approved: { bg: '#E8F0EA', color: '#4A8060', label: 'Odobren' },
+      active:   { bg: '#E8F0EA', color: '#4A8060', label: 'Odobren' },
       rejected: { bg: '#FEE8E8', color: '#B03030', label: 'Odbijen' },
       draft:    { bg: '#F4F5F2', color: '#8A9192', label: 'Nacrt' },
     };
@@ -43,7 +95,7 @@ export default function AdminPanel() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <Navbar />
+
       <div style={{ background: '#505A5B', padding: '28px 24px' }}>
         <div className="max-w-screen-xl mx-auto px-4 sm:px-8">
           <h1 className="text-2xl font-extrabold text-white">Admin panel</h1>
@@ -83,20 +135,20 @@ export default function AdminPanel() {
         ) : (
           <div className="flex flex-col gap-4">
             {filtered.map(p => {
-              const cat = categoryData[p.category];
+              const cat = categoryData ? categoryData[p.category] : null;
               return (
                 <div key={p.uid} className="bg-white rounded-2xl p-6" style={{ border: '1px solid #DDE3DE' }}>
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span style={{ fontSize: '1.2rem' }}>{cat?.icon}</span>
-                        <h2 className="font-bold text-base" style={{ color: '#2B3132' }}>{p.businessName || '(bez naziva)'}</h2>
+                        {cat?.icon && <span style={{ fontSize: '1.2rem' }}>{cat.icon}</span>}
+                        <h2 className="font-bold text-base" style={{ color: '#2B3132' }}>{p.businessName}</h2>
                         {statusBadge(p.status)}
                       </div>
                       <p className="text-xs mb-2" style={{ color: '#8A9192' }}>
-                        {cat?.label} • {p.location} • Od {p.basePrice} € • {p.providerName} ({p.email})
+                        {cat?.label || p.category} • {p.location} • Od {p.basePrice} € • {p.providerName} ({p.email})
                       </p>
-                      <p className="text-sm" style={{ color: '#505A5B' }}>{p.desc}</p>
+                      <p className="text-sm" style={{ color: '#505A5B' }}>{p.desc || 'Nema opisa.'}</p>
                       {p.packages?.length > 0 && (
                         <div className="flex gap-2 mt-3 flex-wrap">
                           {p.packages.map((pkg, i) => (

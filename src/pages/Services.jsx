@@ -1,7 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Calendar, Star, SlidersHorizontal, ArrowLeft } from 'lucide-react';
-import Navbar from '../components/Navbar';
 import { categoryData } from '../utils/categoryData';
 
 const CATEGORIES = [
@@ -70,7 +69,6 @@ export default function Services() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9F6]">
-      <Navbar />
 
       {/* Header sa Search Barom */}
       <div className="bg-[#2D4A3E] py-12 px-4 sm:px-8">
