@@ -11,6 +11,9 @@ export default function ProviderSetup() {
 
   const [form, setForm] = useState({
     businessName: '',
+    oib: '',
+    city: '',
+    address: '',
     desc: '',
     location: '',
     basePrice: '',
@@ -35,6 +38,9 @@ export default function ProviderSetup() {
           if (saved) {
             setForm({
               businessName: saved.businessName || '',
+              oib: saved.oib || '',
+              city: saved.city || '',
+              address: saved.address || '',
               desc: saved.desc || '',
               location: saved.location || '',
               basePrice: saved.basePrice || '',
@@ -81,6 +87,8 @@ export default function ProviderSetup() {
   const isValid = () => {
     return (
       form.businessName.trim().length >= 3 &&
+      form.oib.trim().length === 11 &&
+      form.city.trim().length > 0 &&
       form.desc.trim().length >= 30 &&
       form.location.trim().length > 0 &&
       Number(form.basePrice) > 0 &&
@@ -94,6 +102,9 @@ export default function ProviderSetup() {
     uid: user?.uid || '',
     category: user?.category || 'ostalo',
     businessName: form.businessName || '',
+    oib: form.oib || '',
+    city: form.city || '',
+    address: form.address || '',
     desc: form.desc || '',
     location: form.location || '',
     basePrice: form.basePrice || 0,
@@ -122,7 +133,9 @@ export default function ProviderSetup() {
     e.preventDefault();
 
     if (!isValid()) {
-      if (form.desc.trim().length < 30) {
+      if (form.oib.trim().length !== 11) {
+        alert('OIB mora sadržavati točno 11 znamenki!');
+      } else if (form.desc.trim().length < 30) {
         alert('Opis usluge mora sadržavati barem 30 znakova!');
       } else {
         alert('Molimo ispravno popunite sva obavezna polja i pakete.');
@@ -242,28 +255,83 @@ export default function ProviderSetup() {
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-w-2xl">
           <div className="bg-white rounded-2xl p-6" style={{ border: '1px solid #DDE3DE' }}>
             <h2 className="font-bold text-base mb-4" style={{ color: '#2B3132' }}>
-              Osnovni podaci
+              Osnovni podaci i registracija
             </h2>
             <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
-                  Naziv usluge / brend *
-                </label>
-                <input
-                  value={form.businessName}
-                  onChange={(e) => set('businessName', e.target.value)}
-                  className={inputCls}
-                  style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                  onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
-                  placeholder="npr. Foto Studio Sunce"
-                />
-                {form.businessName.length > 0 && form.businessName.trim().length < 3 && (
-                  <p className="text-xs mt-1" style={{ color: '#B03030' }}>
-                    Minimalno 3 znaka
-                  </p>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
+                    Naziv obrta / tvrtke *
+                  </label>
+                  <input
+                    value={form.businessName}
+                    onChange={(e) => set('businessName', e.target.value)}
+                    className={inputCls}
+                    style={inputStyle}
+                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
+                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
+                    placeholder="npr. Foto Studio Sunce d.o.o."
+                  />
+                  {form.businessName.length > 0 && form.businessName.trim().length < 3 && (
+                    <p className="text-xs mt-1" style={{ color: '#B03030' }}>
+                      Minimalno 3 znaka
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
+                    OIB *
+                  </label>
+                  <input
+                    value={form.oib}
+                    onChange={(e) => set('oib', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    className={inputCls}
+                    style={inputStyle}
+                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
+                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
+                    placeholder="12345678901"
+                  />
+                  {form.oib.length > 0 && form.oib.length !== 11 && (
+                    <p className="text-xs mt-1" style={{ color: '#B03030' }}>
+                      OIB mora imati točno 11 znamenki
+                    </p>
+                  )}
+                </div>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
+                    Grad / Mjesto *
+                  </label>
+                  <input
+                    value={form.city}
+                    onChange={(e) => set('city', e.target.value)}
+                    className={inputCls}
+                    style={inputStyle}
+                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
+                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
+                    placeholder="npr. Zagreb"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
+                    Ulica i kućni broj
+                  </label>
+                  <input
+                    value={form.address}
+                    onChange={(e) => set('address', e.target.value)}
+                    className={inputCls}
+                    style={inputStyle}
+                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
+                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
+                    placeholder="npr. Ilica 10"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
                   Opis usluge *{' '}
@@ -282,10 +350,11 @@ export default function ProviderSetup() {
                   placeholder="Opiši što nudiš, svoju specijalizaciju, iskustvo..."
                 />
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
-                    Lokacija *
+                    Regija / Lokacija djelovanja *
                   </label>
                   <input
                     value={form.location}
@@ -294,7 +363,7 @@ export default function ProviderSetup() {
                     style={inputStyle}
                     onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
                     onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
-                    placeholder="npr. Zagreb"
+                    placeholder="npr. Grad Zagreb i Zagrebačka županija"
                   />
                 </div>
                 <div>
@@ -314,9 +383,10 @@ export default function ProviderSetup() {
                   />
                 </div>
               </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
-                  Kontakt (telefon) *
+                  Kontakt telefon *
                 </label>
                 <input
                   value={form.phone}
@@ -459,8 +529,7 @@ export default function ProviderSetup() {
           </div>
           {!isValid() && (
             <p className="text-xs text-center" style={{ color: '#8A9192' }}>
-              Ispuni sva obavezna polja (*) da bi mogao/la poslati zahtjev (Opis mora imati barem 30
-              znakova)
+              Ispuni sva obavezna polja (*) – OIB mora imati 11 znamenki, a Opis barem 30 znakova.
             </p>
           )}
         </form>

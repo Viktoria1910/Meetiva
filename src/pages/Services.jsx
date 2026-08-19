@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { 
   Search, 
@@ -16,31 +16,58 @@ import {
   Cake,
   ChevronRight
 } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import { categoryData } from '../utils/categoryData';
 
 const CATEGORIES = [
-  { slug: 'fotografi',   label: 'Fotografi i snimatelji', Icon: Camera },
-  { slug: 'glazba',      label: 'Bendovi & DJ-i',         Icon: Music },
-  { slug: 'susedne-sale',label: 'Sale i prostori',        Icon: Building2 },
-  { slug: 'catering',    label: 'Catering i hrana',       Icon: Utensils },
-  { slug: 'dekoracije',  label: 'Dekoracije i cvijeće',   Icon: Flower2 },
-  { slug: 'voditelji',   label: 'Voditelji',              Icon: Mic2 },
-  { slug: 'prijevoz',    label: 'Prijevoz',               Icon: Car },
-  { slug: 'torte',       label: 'Torte i slatkiši',       Icon: Cake },
+  { slug: 'fotografi',  label: 'Fotografi i snimatelji', Icon: Camera },
+  { slug: 'bendovi',    label: 'Bendovi & DJ-i',         Icon: Music },
+  { slug: 'sale',       label: 'Sale i prostori',        Icon: Building2 },
+  { slug: 'catering',   label: 'Catering i hrana',       Icon: Utensils },
+  { slug: 'dekoracije', label: 'Dekoracije i cvijeće',   Icon: Flower2 },
+  { slug: 'voditelji',  label: 'Voditelji',              Icon: Mic2 },
+  { slug: 'prijevoz',   label: 'Prijevoz',               Icon: Car },
+  { slug: 'torte',      label: 'Torte i slatkiši',       Icon: Cake },
 ];
+
+const cleanText = (str) => {
+  if (!str) return '';
+  return String(str).toLowerCase().trim().replace(/-/g, ' ').replace(/\s+/g, ' ');
+};
+
+const isCategoryMatch = (dbCategory, slug) => {
+  const c1 = cleanText(dbCategory);
+  const c2 = cleanText(slug);
+
+  if (!c1 || !c2) return false;
+  if (c1 === c2) return true;
+
+  const saleAliases = ['sale', 'prostori i sale za proslave', 'sale za vjencanja', 'sale za vjenčanja', 'sale i prostori', 'prostor'];
+  if (saleAliases.some(a => c1.includes(a)) && saleAliases.some(a => c2.includes(a))) return true;
+
+  const photoAliases = ['fotografi', 'fotografi i snimatelji', 'fotografija', 'fotograf', 'snimatelji'];
+  if (photoAliases.some(a => c1.includes(a)) && photoAliases.some(a => c2.includes(a))) return true;
+
+  const musicAliases = ['bendovi', 'bendovi & dj-i', 'glazba', 'dj', 'bend'];
+  if (musicAliases.some(a => c1.includes(a)) && musicAliases.some(a => c2.includes(a))) return true;
+
+  return c1.includes(c2) || c2.includes(c1);
+};
 
 export default function Services() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Očitavanje parametara iz URL-a
   const categoryParam = searchParams.get('category') || '';
   const whereParam = searchParams.get('where') || '';
   const whenParam = searchParams.get('when') || '';
 
-  // Lokalno stanje
   const [category, setCategory] = useState(categoryParam);
   const [where, setWhere] = useState(whereParam);
   const [when, setWhen] = useState(whenParam);
+
+  const [dbProviders, setDbProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setCategory(categoryParam);
@@ -48,35 +75,80 @@ export default function Services() {
     setWhen(whenParam);
   }, [categoryParam, whereParam, whenParam]);
 
-  // Prikupljanje SVIH pružatelja iz categoryData
-  const allProviders = Object.entries(categoryData).flatMap(([catKey, catVal]) =>
-    (catVal.providers || []).map(p => ({
-      ...p,
-      categoryKey: catKey,
-      categoryLabel: catVal.label,
-      img: p.img || 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=800',
-      tags: p.tags || []
-    }))
-  );
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'providers'));
+        const list = [];
 
-  // Funkcija za dinamičko dohvaćanje broja pružatelja po kategoriji
+        querySnapshot.forEach((docSnap) => {
+          const p = docSnap.data();
+          const cat = p.category || p.categoryName || p.kategorija || p.type || '';
+
+          list.push({
+            id: docSnap.id,
+            name: p.businessName || p.providerName || p.name || 'Pružatelj usluga',
+            category: cat,
+            location: p.location || p.city || 'Hrvatska',
+            price: p.basePrice ? `Od ${p.basePrice} €` : (p.price ? `Od ${p.price} €` : 'Na upit'),
+            rating: p.rating || 5.0,
+            desc: p.desc || p.description || 'Profesionalne usluge.',
+            img: p.image || p.img || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=800'
+          });
+        });
+
+        setDbProviders(list);
+      } catch (err) {
+        console.error("Greška pri dohvaćanju 'providers':", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProviders();
+  }, []);
+
+  const allProviders = useMemo(() => {
+    const staticList = Object.entries(categoryData).flatMap(([catKey, catVal]) =>
+      (catVal.providers || []).map(p => ({
+        ...p,
+        categoryKey: catKey,
+        categoryLabel: catVal.label,
+        img: p.img || 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&q=80&w=800'
+      }))
+    );
+
+    const firebaseList = dbProviders.map(p => {
+      const matchedCat = CATEGORIES.find(c => isCategoryMatch(p.category, c.slug));
+      return {
+        ...p,
+        categoryKey: matchedCat ? matchedCat.slug : p.category,
+        categoryLabel: matchedCat ? matchedCat.label : p.category
+      };
+    });
+
+    return [...staticList, ...firebaseList];
+  }, [dbProviders]);
+
   const getCategoryCount = (slug) => {
-    return categoryData[slug]?.providers?.length || 0;
+    return allProviders.filter(p => isCategoryMatch(p.categoryKey, slug) || isCategoryMatch(p.category, slug)).length;
   };
 
-  const isSearching = categoryParam || whereParam || whenParam;
+  const isSearching = Boolean(categoryParam || whereParam || whenParam);
 
-  const filteredProviders = allProviders.filter(provider => {
-    const matchesCategory = categoryParam 
-      ? provider.categoryKey.toLowerCase() === categoryParam.toLowerCase() 
-      : true;
+  const filteredProviders = useMemo(() => {
+    return allProviders.filter(provider => {
+      const matchesCategory = categoryParam 
+        ? (isCategoryMatch(provider.categoryKey, categoryParam) || isCategoryMatch(provider.category, categoryParam))
+        : true;
 
-    const matchesWhere = whereParam 
-      ? provider.location.toLowerCase().includes(whereParam.toLowerCase()) 
-      : true;
+      const matchesWhere = whereParam 
+        ? provider.location.toLowerCase().includes(whereParam.toLowerCase()) 
+        : true;
 
-    return matchesCategory && matchesWhere;
-  });
+      return matchesCategory && matchesWhere;
+    });
+  }, [allProviders, categoryParam, whereParam]);
 
   const handleFilterSubmit = (e) => {
     e.preventDefault();
@@ -102,11 +174,9 @@ export default function Services() {
               : 'Pronađi savršenog pružatelja usluge za tvoj događaj'}
           </p>
 
-          {/* Tražilica */}
           <form onSubmit={handleFilterSubmit} className="w-full">
             <div className="bg-white rounded-2xl p-2 sm:p-2.5 shadow-lg flex flex-col md:flex-row items-stretch gap-2 border border-[#E5E9E6]">
 
-              {/* KATEGORIJA */}
               <div className="flex items-center gap-2.5 flex-1 px-3 py-2 md:border-r border-gray-100">
                 <Search size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
@@ -117,16 +187,15 @@ export default function Services() {
                     className="w-full border-none outline-none text-xs font-semibold bg-transparent text-gray-800 cursor-pointer"
                   >
                     <option value="">Sve kategorije</option>
-                    <option value="sale">Sale i prostori</option>
-                    <option value="fotografi">Fotografi i snimatelji</option>
-                    <option value="bendovi">Bendovi & DJ-i</option>
-                    <option value="catering">Catering i hrana</option>
-                    <option value="dekoracije">Dekoracije i cvijeće</option>
+                    {CATEGORIES.map(cat => (
+                      <option key={cat.slug} value={cat.slug}>
+                        {cat.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              {/* GDJE */}
               <div className="flex items-center gap-2.5 flex-1 px-3 py-2 md:border-r border-gray-100">
                 <MapPin size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
@@ -141,7 +210,6 @@ export default function Services() {
                 </div>
               </div>
 
-              {/* KADA */}
               <div className="flex items-center gap-2.5 flex-1 px-3 py-2">
                 <Calendar size={18} className="text-[#6B8E7B] shrink-0" />
                 <div className="w-full">
@@ -170,7 +238,11 @@ export default function Services() {
 
       {/* Sadržaj stranice */}
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 w-full flex-1">
-        {isSearching ? (
+        {loading ? (
+          <div className="text-center py-20 bg-white rounded-2xl border border-[#E5E9E6]">
+            <p className="text-sm font-semibold text-gray-500">Učitavanje kategorija...</p>
+          </div>
+        ) : isSearching ? (
           <div>
             <div className="flex justify-between items-center mb-6">
               <button 
@@ -185,7 +257,7 @@ export default function Services() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {filteredProviders.map(provider => (
                   <div 
-                    key={provider.categoryKey + '-' + provider.id}
+                    key={provider.id}
                     className="bg-white rounded-2xl border border-[#E5E9E6] p-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
@@ -195,7 +267,7 @@ export default function Services() {
                           alt={provider.name} 
                           className="w-full h-full object-cover"
                         />
-                        <span className="absolute top-3 left-3 bg-[#537362]/90 backdrop-blur-md text-white text-[0.65rem] font-semibold px-2.5 py-1 rounded-md tracking-wide">
+                        <span className="absolute top-[#8px] left-[#8px] bg-[#537362]/90 backdrop-blur-md text-white text-[0.65rem] font-semibold px-2.5 py-1 rounded-md tracking-wide">
                           {provider.categoryLabel}
                         </span>
                       </div>
@@ -223,7 +295,7 @@ export default function Services() {
 
                     <div className="pt-3 border-t border-gray-100 flex items-center justify-between mt-2">
                       <span className="text-xs font-semibold text-gray-700">
-                        {provider.price || 'Na upit'}
+                        {provider.price}
                       </span>
 
                       <Link 
@@ -251,7 +323,6 @@ export default function Services() {
             )}
           </div>
         ) : (
-          /* Mreža kategorija s dinamičkim brojem pružatelja */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {CATEGORIES.map(({ slug, label, Icon }) => {
               const count = getCategoryCount(slug);

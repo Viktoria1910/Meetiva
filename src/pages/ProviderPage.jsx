@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { MessageSquare, Star, MapPin, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Star, MapPin, ArrowLeft, Sparkles } from 'lucide-react';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { categoryData } from '../utils/categoryData';
 import { useAuth } from '../contexts/AuthContext';
-import { auth, db } from '../firebase';
+import { db } from '../firebase';
 
 const GALLERY_GRADIENTS = [
   'linear-gradient(135deg,#7DA68D,#BDD2C4)',
@@ -22,20 +23,130 @@ function ratingLabel(r) {
 
 export default function ProviderPage() {
   const { category, id } = useParams();
-  const { isLoggedIn } = useAuth();
+  const { currentUser, isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
-  const data = categoryData[category];
-  const provider = data && data.providers.find(p => String(p.id) === String(id));
+  const userIsAuthenticated = Boolean(currentUser || isLoggedIn);
 
-  const [name,    setName]    = useState('');
-  const [email,   setEmail]   = useState('');
+  const data = categoryData[category] || { label: 'Usluge' };
+
+  const [provider, setProvider] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [startingChat, setStartingChat] = useState(false);
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
-  const [sent,    setSent]    = useState(false);
+  const [sent, setSent] = useState(false);
+
+  useEffect(() => {
+    const loadProvider = async () => {
+      setLoading(true);
+
+      // 1. Lokalni podaci
+      const localData = categoryData[category];
+      const localProvider = localData && localData.providers?.find(p => String(p.id) === String(id));
+
+      if (localProvider) {
+        setProvider(localProvider);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Firestore baza
+      try {
+        const docRef = doc(db, 'providers', id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          const p = docSnap.data();
+          setProvider({
+            id: docSnap.id,
+            name: p.businessName || p.providerName || p.name || 'Pružatelj usluga',
+            location: p.location || p.city || 'Hrvatska',
+            price: p.basePrice ? `Od ${p.basePrice} €` : (p.price ? `Od ${p.price} €` : 'Na upit'),
+            rating: p.rating || 5.0,
+            desc: p.desc || p.description || 'Profesionalne usluge za tvoj događaj.',
+          });
+        } else {
+          setProvider(null);
+        }
+      } catch (err) {
+        console.error("Greška pri dohvaćanju pružatelja iz baze:", err);
+        setProvider(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProvider();
+  }, [category, id]);
+
+  // Funkcija za pokretanje/otvaranje chata
+  const handleStartChat = async () => {
+    if (!currentUser) {
+      navigate('/login');
+      return;
+    }
+
+    setStartingChat(true);
+
+    try {
+      const chatsRef = collection(db, 'chats');
+      
+      // Provjera postoji li već chat između ova dva korisnika
+      const q = query(
+        chatsRef,
+        where('participants', 'array-contains', currentUser.uid)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      let existingChatId = null;
+
+      querySnapshot.forEach((docSnap) => {
+        const chatData = docSnap.data();
+        if (chatData.participants.includes(provider.id)) {
+          existingChatId = docSnap.id;
+        }
+      });
+
+      if (existingChatId) {
+        // Chat postoji, idi na njega
+        navigate('/messages', { state: { activeChatId: existingChatId } });
+      } else {
+        // Stvori novi chat u Firestore bazi
+        const newChatRef = await addDoc(chatsRef, {
+          participants: [currentUser.uid, provider.id],
+          participantNames: {
+            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Korisnik',
+            [provider.id]: provider.name
+          },
+          lastMessage: '',
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp()
+        });
+
+        navigate('/messages', { state: { activeChatId: newChatRef.id } });
+      }
+    } catch (error) {
+      console.error("Greška pri pokretanju razgovora:", error);
+      // Fallback ako ne uspije Firestore upis
+      navigate('/messages', { state: { providerId: provider.id, providerName: provider.name } });
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F5F2' }}>
+        <p className="text-sm font-semibold" style={{ color: '#8A9192' }}>Učitavanje podataka...</p>
+      </div>
+    );
+  }
 
   if (!provider) return (
     <div className="min-h-screen" style={{ background: '#F4F5F2' }}>
-  
       <div className="max-w-screen-xl mx-auto px-4 sm:px-8 py-16 text-center">
         <h1 className="text-2xl font-bold" style={{ color: '#2B3132' }}>Pružatelj nije pronađen</h1>
         <Link to="/services" className="mt-4 inline-block text-sm font-semibold" style={{ color: '#A7A5D0' }}>
@@ -46,7 +157,7 @@ export default function ProviderPage() {
   );
 
   const handleSend = (e) => { e.preventDefault(); setSent(true); };
-  const stars = Math.round(provider.rating);
+  const stars = Math.round(provider.rating || 5);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
@@ -67,22 +178,22 @@ export default function ProviderPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2" style={{ height: 280 }}>
           <div className="col-span-1 md:col-span-2 row-span-2 rounded-2xl overflow-hidden flex items-center justify-center"
             style={{ background: GALLERY_GRADIENTS[0], minHeight: 130 }}>
-            <span style={{ fontSize: '4rem', opacity: 0.3 }}>{data.icon}</span>
+            <Sparkles size={64} style={{ color: '#2B3132', opacity: 0.25 }} />
           </div>
-          {[1,2,3,4].map(i => (
+          {[1, 2, 3, 4].map(i => (
             <div key={i} className="rounded-xl overflow-hidden flex items-center justify-center"
               style={{ background: GALLERY_GRADIENTS[i], height: 136 }}>
-              <span style={{ fontSize: '1.8rem', opacity: 0.3 }}>{data.icon}</span>
+              <Sparkles size={32} style={{ color: '#2B3132', opacity: 0.25 }} />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Main grid: content (left) + sidebar (right) */}
+      {/* Main grid */}
       <div className="max-w-screen-xl mx-auto px-4 sm:px-8 lg:px-12 w-full pb-12
         grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] gap-6 items-start">
 
-        {/* ── Left content ── */}
+        {/* Left content */}
         <div className="flex flex-col gap-5">
 
           {/* Title */}
@@ -117,7 +228,7 @@ export default function ProviderPage() {
             </p>
           </div>
 
-          {/* Pricing packages */}
+          {/* Packages */}
           <div className="bg-white rounded-2xl p-5 sm:p-6" style={{ border: '1px solid #DDE3DE' }}>
             <h2 className="font-bold text-base mb-3" style={{ color: '#2B3132' }}>Paketi i cijene</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -157,8 +268,12 @@ export default function ProviderPage() {
               </div>
               <p className="text-sm" style={{ color: '#505A5B' }}>Savršena usluga! Sve je bilo točno onako kako smo zamislili. Toplo preporučujem.</p>
             </div>
+            
             <div className="relative">
-              <div style={{ filter: isLoggedIn ? 'none' : 'blur(5px)', pointerEvents: isLoggedIn ? 'auto' : 'none' }}>
+              <div style={{ 
+                filter: userIsAuthenticated ? 'none' : 'blur(5px)', 
+                pointerEvents: userIsAuthenticated ? 'auto' : 'none' 
+              }}>
                 {[
                   { init: 'T', name: 'Tomislav Petrić', date: 'Rujna 2024',  text: 'Odlično! Brzi odgovor, profesionalan pristup.' },
                   { init: 'A', name: 'Ana Babić',       date: 'Srpnja 2024', text: 'Nevjerojatna kvaliteta. Naša svadba je bila savršena.' },
@@ -174,7 +289,8 @@ export default function ProviderPage() {
                   </div>
                 ))}
               </div>
-              {!isLoggedIn && (
+
+              {!userIsAuthenticated && (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center bg-white rounded-xl p-4" style={{ border: '1px solid #DDE3DE', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
                     <p className="text-sm font-semibold mb-2" style={{ color: '#2B3132' }}>Prijavi se da vidiš sve recenzije</p>
@@ -189,10 +305,10 @@ export default function ProviderPage() {
           </div>
         </div>
 
-        {/* ── Sidebar ── */}
+        {/* Sidebar */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-20">
 
-          {/* Quick stats */}
+          {/* Quick stats & Poruka button */}
           <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #DDE3DE' }}>
             <div className="text-center mb-4">
               <div className="text-3xl font-extrabold" style={{ color: '#A7A5D0' }}>{provider.rating}</div>
@@ -205,21 +321,24 @@ export default function ProviderPage() {
               </div>
               <div className="text-xs font-semibold" style={{ color: '#7DA68D' }}>{ratingLabel(provider.rating)}</div>
             </div>
-            <div className="text-center py-2 rounded-xl mb-3" style={{ background: '#E8F0EA' }}>
+            <div className="text-center py-2 rounded-xl mb-4" style={{ background: '#E8F0EA' }}>
               <div className="text-xl font-extrabold" style={{ color: '#7DA68D' }}>{provider.price}</div>
               <div className="text-xs" style={{ color: '#8A9192' }}>početna cijena</div>
             </div>
-            {isLoggedIn ? (
-              <button onClick={() => navigate('/messages')}
-                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 mb-2 transition-colors"
+
+            {userIsAuthenticated ? (
+              <button 
+                onClick={handleStartChat}
+                disabled={startingChat}
+                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                 style={{ background: '#7DA68D', border: 'none', cursor: 'pointer' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#5D8C6D'}
                 onMouseLeave={e => e.currentTarget.style.background = '#7DA68D'}>
-                <MessageSquare size={15} /> Pošalji poruku
+                <MessageSquare size={15} /> {startingChat ? 'Otvaranje...' : 'Pošalji poruku'}
               </button>
             ) : (
               <Link to="/login"
-                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 mb-2 transition-colors"
+                className="w-full py-2.5 rounded-xl font-semibold text-sm text-white flex items-center justify-center gap-2 transition-colors"
                 style={{ background: '#A7A5D0', textDecoration: 'none' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#8886B8'}
                 onMouseLeave={e => e.currentTarget.style.background = '#A7A5D0'}>
@@ -228,40 +347,39 @@ export default function ProviderPage() {
             )}
           </div>
 
-          {/* Inquiry form */}
-          <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #DDE3DE' }}>
-            <h3 className="font-bold text-sm mb-3" style={{ color: '#2B3132' }}>Pošalji upit</h3>
-            {sent ? (
-              <div className="text-center py-4">
-                <div className="text-2xl mb-2">✅</div>
-                <p className="text-sm font-semibold" style={{ color: '#7DA68D' }}>Upit je poslan!</p>
-                <p className="text-xs mt-1" style={{ color: '#8A9192' }}>Pružatelj će te kontaktirati uskoro.</p>
-              </div>
-            ) : (
-              <form onSubmit={handleSend} className="flex flex-col gap-3">
-                {!isLoggedIn && (
-                  <>
-                    <input type="text" placeholder="Vaše ime" required value={name} onChange={e => setName(e.target.value)}
-                      className="w-full text-sm rounded-lg px-3 py-2 outline-none"
-                      style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
-                    <input type="email" placeholder="Email adresa" required value={email} onChange={e => setEmail(e.target.value)}
-                      className="w-full text-sm rounded-lg px-3 py-2 outline-none"
-                      style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
-                  </>
-                )}
-                <textarea placeholder="Vaša poruka..." required value={message} onChange={e => setMessage(e.target.value)}
-                  rows={4} className="w-full text-sm rounded-lg px-3 py-2 outline-none resize-none"
-                  style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
-                <button type="submit"
-                  className="w-full py-2 rounded-xl font-semibold text-sm text-white transition-colors"
-                  style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#8886B8'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#A7A5D0'}>
-                  Pošalji upit
-                </button>
-              </form>
-            )}
-          </div>
+          {/* Inquiry form - Neprijavljeni */}
+          {!userIsAuthenticated && (
+            <div className="bg-white rounded-2xl p-5" style={{ border: '1px solid #DDE3DE' }}>
+              <h3 className="font-bold text-sm mb-3" style={{ color: '#2B3132' }}>Pošalji upit</h3>
+              {sent ? (
+                <div className="text-center py-4">
+                  <div className="text-2xl mb-2">✅</div>
+                  <p className="text-sm font-semibold" style={{ color: '#7DA68D' }}>Upit je poslan!</p>
+                  <p className="text-xs mt-1" style={{ color: '#8A9192' }}>Pružatelj će te kontaktirati uskoro.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSend} className="flex flex-col gap-3">
+                  <input type="text" placeholder="Vaše ime" required value={name} onChange={e => setName(e.target.value)}
+                    className="w-full text-sm rounded-lg px-3 py-2 outline-none"
+                    style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
+                  <input type="email" placeholder="Email adresa" required value={email} onChange={e => setEmail(e.target.value)}
+                    className="w-full text-sm rounded-lg px-3 py-2 outline-none"
+                    style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
+                  <textarea placeholder="Vaša poruka..." required value={message} onChange={e => setMessage(e.target.value)}
+                    rows={4} className="w-full text-sm rounded-lg px-3 py-2 outline-none resize-none"
+                    style={{ border: '1px solid #DDE3DE', color: '#2B3132' }} />
+                  <button type="submit"
+                    className="w-full py-2 rounded-xl font-semibold text-sm text-white transition-colors"
+                    style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#8886B8'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#A7A5D0'}>
+                    Pošalji upit
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
     </div>

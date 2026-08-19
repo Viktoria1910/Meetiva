@@ -6,19 +6,18 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 
 // Stranice
-import Home                  from './pages/Home';
-import Services              from './pages/Services';
-import CategoryPage          from './pages/CategoryPage';
-import ProviderPage          from './pages/ProviderPage';
-import Login                 from './pages/Login';
-import Register              from './pages/Register';
-import Dashboard             from './pages/Dashboard';
-import Messages              from './pages/Messages';
-import Profile               from './pages/Profile';
-import Search                from './pages/Search';
-import ProviderSetup         from './pages/ProviderSetup';
-import AdminPanel            from './pages/AdminPanel';
-import AdminPendingProviders from './pages/AdminPendingProviders';
+import Home          from './pages/Home';
+import Services      from './pages/Services';
+import CategoryPage  from './pages/CategoryPage';
+import ProviderPage  from './pages/ProviderPage';
+import Login         from './pages/Login';
+import Register      from './pages/Register';
+import Dashboard     from './pages/Dashboard';
+import Messages      from './pages/Messages';
+import Profile       from './pages/Profile';
+import Search        from './pages/Search';
+import ProviderSetup from './pages/ProviderSetup';
+import AdminPanel    from './pages/AdminPanel';
 
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -77,20 +76,10 @@ export default function App() {
             </ProtectedRoute>
           } 
         />
-        <Route 
-          path="/admin/pending-providers" 
-          element={
-            <ProtectedRoute>
-              <AdminPendingProviders />
-            </ProtectedRoute>
-          } 
-        />
       </Route>
 
-      {/* Rute izvan Layouta (ako imate npr. poseban Fullscreen Checkout ili Login bez Navbara) */}
-      {/* <Route path="/minimal-login" element={<Login />} /> */}
-
       {/* Preusmjeravanja */}
+      <Route path="/admin/pending-providers" element={<Navigate to="/admin" replace />} />
       <Route path="/categories" element={<Navigate to="/services" replace />} />
       <Route path="/bookings"   element={<Navigate to="/dashboard" replace />} />
       <Route path="*"           element={<Navigate to="/" replace />} />

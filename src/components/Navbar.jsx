@@ -14,10 +14,11 @@ export default function Navbar() {
 
   useEffect(() => {
     if (currentUser && userProfile?.role === 'admin') {
+      // SADA: Tražimo pružatelje čiji je status 'pending'
       const q = query(
         collection(db, 'users'),
         where('role', '==', 'provider'),
-        where('approved', '==', false)
+        where('status', '==', 'pending')
       );
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -85,11 +86,11 @@ export default function Navbar() {
 
             {userProfile?.role === 'admin' && (
               <Link 
-                to="/admin/pending-providers" 
-                style={navLinkStyle('/admin/pending-providers')}
+                to="/admin" 
+                style={navLinkStyle('/admin')}
                 className="flex items-center gap-2"
               >
-                <span>Nove registracije</span>
+                <span>Nove Registracije</span>
                 {pendingCount > 0 && (
                   <span className="px-2 py-0.5 text-xs font-bold text-white bg-red-500 rounded-full">
                     {pendingCount}

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function Login() {
-  const { demoLogin } = useAuth();
+  const { login } = useAuth(); // <--- Koristimo pravi login
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,13 +16,38 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setSubmitting(true);
-    const result = await demoLogin(email, password);
-    setSubmitting(false);
-    if (result.error) { setError(result.error); return; }
-    const u = result.user;
-    if (u.role === 'admin') navigate('/admin');
-    else if (u.role === 'provider' && u.providerStatus === 'setup') navigate('/provider-setup');
-    else navigate('/');
+
+    try {
+      // 1. Prijava na Firebase Auth
+      const userCredential = await login(email, password);
+      const user = userCredential.user;
+
+      // 2. Dohvaćanje korisničkog profila i uloge iz Firestorea
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      setSubmitting(false);
+
+      if (userDocSnap.exists()) {
+        const uData = userDocSnap.data();
+
+        // 3. Sigurno preusmjeravanje ovisno o ulozi
+        if (uData?.role === 'admin') {
+          navigate('/admin');
+        } else if (uData?.role === 'provider' && uData?.providerStatus === 'setup') {
+          navigate('/provider-setup');
+        } else {
+          navigate('/');
+        }
+      } else {
+        // Ako nema dokumenta u bazi, vozi na početnu
+        navigate('/');
+      }
+    } catch (err) {
+      setSubmitting(false);
+      console.error('Greška pri prijavi:', err);
+      setError('Pogrešan email ili lozinka.');
+    }
   };
 
   const inputCls = 'w-full px-4 py-3 rounded-xl border outline-none transition-all text-sm';
@@ -28,7 +55,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="bg-white rounded-3xl shadow-sm p-8 sm:p-10 w-full max-w-md" style={{ border: '1px solid #DDE3DE' }}>
           <h2 className="text-2xl font-extrabold mb-1" style={{ color: '#2B3132' }}>Dobrodošli natrag</h2>

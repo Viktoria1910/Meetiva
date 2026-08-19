@@ -1,31 +1,48 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { Star, MapPin, CheckCircle, SlidersHorizontal } from 'lucide-react';
+import { Star, MapPin, SlidersHorizontal } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import { categoryData } from '../utils/categoryData';
-import { getApprovedProviders } from '../utils/providerStorage';
 
 const ITEMS_PER_PAGE = 6;
 
-const SLUG_ALIAS_MAP = {
-  'glazba': 'bendovi',
-  'susedne-sale': 'sale',
-  'fotografi-i-snimatelji': 'fotografi',
-  'catering-i-hrana': 'catering',
-  'dekoracije-i-cvijece': 'dekoracije'
+// Pomoćna funkcija za normiranje teksta (uklanja crtice, viškove razmaka i pretvara u mala slova)
+const cleanText = (str) => {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .trim()
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ');
+};
+
+// Provjera podudara li se kategorija iz baze s onom u URL-u
+const isCategoryMatch = (dbCategory, urlCategory) => {
+  const c1 = cleanText(dbCategory);
+  const c2 = cleanText(urlCategory);
+
+  if (c1 === c2) return true;
+
+  const saleAliases = ['sale', 'prostori i sale za proslave', 'sale za vjencanja', 'sale za vjenčanja'];
+  const isC1Sale = saleAliases.some(alias => c1.includes(alias));
+  const isC2Sale = saleAliases.some(alias => c2.includes(alias));
+
+  return isC1Sale && isC2Sale;
 };
 
 const parsePrice = (str) => {
   if (!str) return 0;
-  const m = str.match(/(\d+)/);
+  const m = String(str).match(/(\d+)/);
   return m ? parseInt(m[1], 10) : 0;
 };
 
 const PRICE_RANGES = [
-  { value: 'all',      label: 'Sve cijene' },
-  { value: '0-500',    label: 'Do 500 €' },
+  { value: 'all',       label: 'Sve cijene' },
+  { value: '0-500',     label: 'Do 500 €' },
   { value: '500-1000', label: '500 – 1000 €' },
-  { value: '1000-2000',label: '1000 – 2000 €' },
-  { value: '2000+',    label: 'Više od 2000 €' },
+  { value: '1000-2000', label: '1000 – 2000 €' },
+  { value: '2000+',     label: 'Više od 2000 €' },
 ];
 
 function matchesPrice(provider, range) {
@@ -42,8 +59,17 @@ export default function CategoryPage() {
   const { category: rawCategory } = useParams();
   const [searchParams] = useSearchParams();
 
-  const categoryKey = SLUG_ALIAS_MAP[rawCategory] || rawCategory;
-  const data = categoryData[categoryKey];
+  // Pronalaženje odgovarajućeg opisa kategorije iz categoryData.js
+  const dataKey = useMemo(() => {
+    if (!categoryData) return null;
+    const directKey = Object.keys(categoryData).find(key => isCategoryMatch(key, rawCategory));
+    return directKey || rawCategory;
+  }, [rawCategory]);
+
+  const data = categoryData[dataKey] || categoryData[rawCategory] || {
+    label: rawCategory ? rawCategory.replace(/-/g, ' ') : 'Kategorija',
+    providers: []
+  };
 
   const initialWhere = searchParams.get('where') || '';
 
@@ -53,34 +79,50 @@ export default function CategoryPage() {
   const [selectedLoc, setSelectedLoc] = useState(initialWhere);
   const [page,        setPage]        = useState(1);
   const [registeredProviders, setRegisteredProviders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!categoryKey) return;
-    getApprovedProviders(categoryKey).then(list => {
-      setRegisteredProviders(list.map(p => ({ 
-        id: p.uid, 
-        name: p.businessName, 
-        location: p.location, 
-        price: `Od ${p.basePrice} €`, 
-        rating: 4.8, 
-        desc: p.desc || 'Profesionalne usluge za vaš događaj.',
-        img: p.image || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=800',
-        tags: ['Verified', 'Popular']
-      })));
-    });
-  }, [categoryKey]);
+    const fetchProvidersFromFirestore = async () => {
+      setLoading(true);
+      try {
+        // Dohvaćamo direktno iz kolekcije 'providers'
+        const querySnapshot = await getDocs(collection(db, 'providers'));
+        const list = [];
 
-  if (!data) return (
-    <div className="min-h-screen flex flex-col bg-[#F9FAF8]">
-      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-        <h1 className="text-2xl font-bold text-gray-800">Kategorija nije pronađena</h1>
-        <p className="text-sm text-gray-500 mt-2">Kategorija "{rawCategory}" trenutno ne postoji.</p>
-        <Link to="/services" className="mt-6 inline-block text-sm font-semibold text-[#2D4A3E] underline">
-          ← Natrag na sve kategorije
-        </Link>
-      </div>
-    </div>
-  );
+        querySnapshot.forEach((docSnap) => {
+          const p = docSnap.data();
+          const docId = docSnap.id;
+
+          const pCategory = p.category || p.categoryName || '';
+          const status = String(p.status || p.providerStatus || '').toLowerCase().trim();
+
+          const isMatch = isCategoryMatch(pCategory, rawCategory);
+          const isApproved = status === 'approved' || status === 'active' || status === '';
+
+          if (isMatch && isApproved) {
+            list.push({
+              id: docId,
+              name: p.businessName || p.providerName || p.name || 'Pružatelj usluga',
+              location: p.location || p.city || 'Hrvatska',
+              price: p.basePrice ? `Od ${p.basePrice} €` : (p.price ? `Od ${p.price} €` : 'Od 0 €'),
+              rating: p.rating || 4.8,
+              desc: p.desc || p.description || 'Profesionalne usluge za vaš događaj.',
+              img: p.image || p.img || (p.images && p.images[0]) || 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=800',
+              tags: p.tags || ['Verified', 'Novo']
+            });
+          }
+        });
+
+        setRegisteredProviders(list);
+      } catch (err) {
+        console.error("Greška pri dohvaćanju pružatelja iz kolekcije 'providers':", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProvidersFromFirestore();
+  }, [rawCategory]);
 
   const allProviders = useMemo(() => [
     ...(data.providers || []).map(p => ({
@@ -112,12 +154,10 @@ export default function CategoryPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9F6]">
-
-
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-8 w-full flex-1">
         <div className="flex flex-col lg:flex-row gap-10 items-start">
 
-          {/* ── SIDEBAR FILTERS ── */}
+          {/* SIDEBAR FILTERS */}
           <aside className="w-full lg:w-64 shrink-0 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm sticky top-24">
             <div className="flex items-center gap-2 mb-6 text-gray-900 font-bold text-lg">
               <SlidersHorizontal size={18} />
@@ -194,14 +234,12 @@ export default function CategoryPage() {
             </button>
           </aside>
 
-          {/* ── MAIN CONTENT ── */}
+          {/* MAIN CONTENT */}
           <main className="flex-1 w-full">
-            
-            {/* Header / Title */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
-                  {data.label}
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight capitalize">
+                  {data.label || rawCategory}
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
                   {filtered.length} professionals found in your area
@@ -225,7 +263,11 @@ export default function CategoryPage() {
             </div>
 
             {/* Providers List */}
-            {paged.length === 0 ? (
+            {loading ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-sm font-semibold text-gray-500">Učitavanje pružatelja...</p>
+              </div>
+            ) : paged.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
                 <p className="text-lg font-bold text-gray-700">No professionals found</p>
                 <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or location</p>
@@ -266,7 +308,7 @@ export default function CategoryPage() {
                           {/* Green Rating Badge */}
                           <div className="bg-[#EBF5EF] text-[#2D4A3E] font-extrabold text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 shrink-0">
                             <Star size={13} className="fill-[#2D4A3E] text-[#2D4A3E]" />
-                            <span>{provider.rating || 4.9}</span>
+                            <span>{provider.rating || 4.8}</span>
                             <span className="text-gray-400 font-normal text-[0.7rem]">(12 reviews)</span>
                           </div>
                         </div>
@@ -288,7 +330,7 @@ export default function CategoryPage() {
                         </div>
 
                         <Link 
-                          to={`/services/${categoryKey}/${provider.id}`}
+                          to={`/services/${rawCategory}/${provider.id}`}
                           className="w-full sm:w-auto px-6 py-2.5 bg-[#2D4A3E] hover:bg-[#233A31] text-white text-xs font-bold rounded-xl text-center transition-colors shadow-sm"
                           style={{ textDecoration: 'none' }}
                         >
