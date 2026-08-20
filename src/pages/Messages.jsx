@@ -1,382 +1,375 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, MessageSquare } from 'lucide-react';
+import { Send, User, MessageSquare, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  deleteDoc,
+  doc,
+  updateDoc,
+  serverTimestamp 
+} from 'firebase/firestore';
 
 export default function Messages() {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, userProfile, loading } = useAuth();
   const navigate = useNavigate();
 
-  const [input, setInput] = useState('');
+  const [chats, setChats] = useState([]);
+  const [activeChat, setActiveChat] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [loadingChats, setLoadingChats] = useState(true);
+  const [unreadCounts, setUnreadCounts] = useState({});
+  
+  const messagesEndRef = useRef(null);
 
-  // Dohvaćanje prihvaćenih ponuda
-  const [acceptedOfferIds, setAcceptedOfferIds] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('meetiva_accepted_offers')) || [];
-    } catch {
-      return [];
-    }
-  });
+  // Skrolanje na dno poruka
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  // Dohvaćanje rezervacija
-  const [reservations, setReservations] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('meetiva_reservations')) || [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Učitavanje stvarnih razgovora (inicijalno prazan niz umjesto mock podataka)
-  const [convs, setConvs] = useState(() => {
-    try {
-      const savedConvs = JSON.parse(localStorage.getItem('meetiva_conversations')) || [];
-      const savedAccepted = JSON.parse(localStorage.getItem('meetiva_accepted_offers')) || [];
-      
-      return savedConvs.map(conv => ({
-        ...conv,
-        messages: (conv.messages || []).map(msg => {
-          if (msg.offer && savedAccepted.includes(msg.id)) {
-            return { ...msg, offerAccepted: true };
-          }
-          return msg;
-        }),
-      }));
-    } catch {
-      return [];
-    }
-  });
-
-  // Postavljanje aktivnog razgovora na prvi raspoloživi ili null
-  const [activeId, setActive] = useState(() => convs[0]?.id || null);
-
-  // Sinhronizacija razgovora s localStorage-om
   useEffect(() => {
-    try {
-      localStorage.setItem('meetiva_conversations', JSON.stringify(convs));
-    } catch (e) {
-      console.error('Greška pri spremanju razgovora:', e);
+    scrollToBottom();
+  }, [messages]);
+
+  // 1. Povlačenje svih razgovora korisnika + praćenje nepročitanih poruka za svaki chat
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setLoadingChats(false);
+      return;
     }
-  }, [convs]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-500 font-medium text-sm">Učitavanje...</p>
-        </div>
-      </div>
+    const q = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', currentUser.uid)
     );
-  }
 
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center bg-white rounded-2xl p-10" style={{ border: '1px solid #DDE3DE' }}>
-            <p className="text-lg font-bold mb-2" style={{ color: '#2B3132' }}>Niste prijavljeni</p>
-            <p className="text-sm mb-4" style={{ color: '#8A9192' }}>Prijavite se da biste pristupili porukama.</p>
-            <button
-              onClick={() => navigate('/login')}
-              className="px-6 py-2 rounded-full font-semibold text-white text-sm"
-              style={{ background: '#A7A5D0' }}
-            >
-              Prijava
-            </button>
-          </div>
-        </div>
-      </div>
+    const unsubscribes = [];
+
+    const unsubscribeChats = onSnapshot(q, (snapshot) => {
+      const fetchedChats = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+      setChats(fetchedChats);
+      setLoadingChats(false);
+
+      // Postavljanje listenera za nepročitane poruke za svaki pojedini chat
+      fetchedChats.forEach(chat => {
+        const messagesQ = query(
+          collection(db, 'chats', chat.id, 'messages'),
+          where('read', '==', false)
+        );
+
+        const unsubMsg = onSnapshot(messagesQ, (msgSnapshot) => {
+          // Brojimo samo poruke koje je poslala druga osoba
+          const unreadFromOther = msgSnapshot.docs.filter(
+            docSnap => docSnap.data().senderId !== currentUser.uid
+          ).length;
+
+          setUnreadCounts(prev => ({
+            ...prev,
+            [chat.id]: unreadFromOther
+          }));
+        });
+
+        unsubscribes.push(unsubMsg);
+      });
+    }, (error) => {
+      console.error("Greška pri dohvaćanju razgovora:", error);
+      setLoadingChats(false);
+    });
+
+    return () => {
+      unsubscribeChats();
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [currentUser]);
+
+  // 2. Ako je aktivni chat obrisan ili više ne postoji, poništi activeChat
+  useEffect(() => {
+    if (activeChat && (!chats || !chats.some(c => c.id === activeChat.id))) {
+      setActiveChat(null);
+    }
+  }, [chats, activeChat]);
+
+  // 3. Povlačenje poruka za odabrani razgovor i automatsko označenje kao pročitano
+  useEffect(() => {
+    if (!activeChat?.id) {
+      setMessages([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'chats', activeChat.id, 'messages'),
+      orderBy('createdAt', 'asc')
     );
-  }
 
-  const activeConv = convs.find(c => c.id === activeId);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedMessages = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data()
+      }));
+      setMessages(fetchedMessages);
 
-  const sendMessage = (e) => {
+      // Označi sve pristigle nepročitane poruke drugog korisnika kao pročitane
+      snapshot.docs.forEach(async (messageDoc) => {
+        const data = messageDoc.data();
+        if (data.senderId !== currentUser?.uid && data.read === false) {
+          try {
+            await updateDoc(doc(db, 'chats', activeChat.id, 'messages', messageDoc.id), {
+              read: true
+            });
+          } catch (err) {
+            console.error("Greška pri ažuriranju statusa poruke:", err);
+          }
+        }
+      });
+    }, (error) => {
+      console.error("Greška pri dohvaćanju poruka:", error);
+    });
+
+    return () => unsubscribe();
+  }, [activeChat, currentUser]);
+
+  // 4. Slanje poruke
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !activeId) return;
+    if (!newMessage.trim() || !activeChat?.id || !currentUser?.uid) return;
 
-    const now = new Date().toLocaleTimeString('hr', { hour: '2-digit', minute: '2-digit' });
-    const newMsg = { id: Date.now(), from: 'user', text: input.trim(), time: now };
+    const textToSend = newMessage;
+    setNewMessage('');
 
-    setConvs(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? { ...c, messages: [...c.messages, newMsg], lastMessage: input.trim(), time: now }
-          : c
-      )
-    );
-    setInput('');
-  };
-
-  const acceptOffer = (msg) => {
-    if (!activeConv || msg.offerAccepted || acceptedOfferIds.includes(msg.id)) return;
-
-    const exists = reservations.some(
-      r => r.provider === activeConv.provider && r.title === msg.offer.title
-    );
-
-    let updatedReservations = reservations;
-    if (!exists) {
-      const res = {
-        id: Date.now(),
-        provider: activeConv.provider,
-        category: activeConv.category,
-        title: msg.offer.title,
-        price: msg.offer.price,
-        status: 'confirmed',
-        date: new Date().toLocaleDateString('hr'),
-      };
-      updatedReservations = [...reservations, res];
-      setReservations(updatedReservations);
-      try {
-        localStorage.setItem('meetiva_reservations', JSON.stringify(updatedReservations));
-      } catch {}
-    }
-
-    const newAcceptedIds = [...acceptedOfferIds, msg.id];
-    setAcceptedOfferIds(newAcceptedIds);
     try {
-      localStorage.setItem('meetiva_accepted_offers', JSON.stringify(newAcceptedIds));
-    } catch {}
-
-    setConvs(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? {
-              ...c,
-              messages: c.messages.map(m => (m.id === msg.id ? { ...m, offerAccepted: true } : m)),
-            }
-          : c
-      )
-    );
+      await addDoc(collection(db, 'chats', activeChat.id, 'messages'), {
+        text: textToSend,
+        senderId: currentUser.uid,
+        senderName: userProfile?.name || currentUser.displayName || 'Korisnik',
+        createdAt: serverTimestamp(),
+        read: false // Nova poruka je po defaultu nepročitana
+      });
+    } catch (error) {
+      console.error("Greška pri slanju poruke:", error);
+    }
   };
 
-  const declineOffer = (msgId) => {
-    setConvs(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? {
-              ...c,
-              messages: c.messages.map(m => (m.id === msgId ? { ...m, offerDeclined: true } : m)),
-            }
-          : c
-      )
-    );
+  // 5. Brisanje razgovora
+  const handleDeleteChat = async (chatId, e) => {
+    e.stopPropagation();
+    if (window.confirm("Jeste li sigurni da želite obrisati ovaj razgovor?")) {
+      try {
+        await deleteDoc(doc(db, 'chats', chatId));
+        if (activeChat?.id === chatId) {
+          setActiveChat(null);
+        }
+      } catch (error) {
+        console.error("Greška pri brisanju razgovora:", error);
+      }
+    }
   };
+
+  // Sigurno formatiranje vremena
+  const formatTime = (createdAt) => {
+    if (!createdAt) return 'Šalje se...';
+    if (typeof createdAt.toDate === 'function') {
+      return createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return '';
+  };
+
+  if (loading || loadingChats) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F5F2' }}>
+        <p className="text-sm font-semibold" style={{ color: '#8A9192' }}>Učitavanje poruka...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
-      <div
-        className="max-w-screen-xl mx-auto px-4 sm:px-8 py-6 w-full flex gap-4"
-        style={{ height: 'calc(100vh - 116px)', minHeight: 500 }}
-      >
-        {convs.length === 0 ? (
-          /* Prazno stanje kada korisnik nema niti jedan razgovor */
-          <div className="flex-1 bg-white rounded-2xl flex flex-col items-center justify-center p-8 text-center" style={{ border: '1px solid #DDE3DE' }}>
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ background: '#EEEDF9', color: '#A7A5D0' }}>
-              <MessageSquare size={32} />
+      <div className="max-w-screen-xl w-full mx-auto px-4 sm:px-8 py-8 flex-1 flex flex-col">
+        <h1 className="text-2xl font-extrabold mb-6" style={{ color: '#2B3132' }}>Poruke</h1>
+
+        {!chats || chats.length === 0 ? (
+          <div 
+            className="bg-white rounded-2xl p-12 text-center flex flex-col items-center justify-center my-auto"
+            style={{ border: '1px solid #DDE3DE' }}
+          >
+            <div 
+              className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+              style={{ background: '#EEEDF9' }}
+            >
+              <MessageSquare size={32} style={{ color: '#8886B8' }} />
             </div>
-            <h3 className="text-lg font-bold mb-1" style={{ color: '#2B3132' }}>Nemate aktivnih poruka</h3>
-            <p className="text-sm max-w-sm" style={{ color: '#8A9192' }}>
-              Kada pošaljete upit pružateljima usluga, vaši razgovori i ponude prikazat će se ovdje.
+            <h3 className="text-lg font-bold mb-2" style={{ color: '#2B3132' }}>Nemate aktivnih poruka</h3>
+            <p className="text-sm mb-6 max-w-sm" style={{ color: '#505A5B' }}>
+              Nemate još započetih razgovora. Poruke možete započeti direktno s profila pružatelja usluga.
             </p>
+            <button
+              onClick={() => navigate('/')}
+              className="px-6 py-2.5 rounded-xl font-semibold text-white text-sm transition-colors border-none"
+              style={{ background: '#A7A5D0', cursor: 'pointer' }}
+            >
+              Pretraži usluge
+            </button>
           </div>
         ) : (
-          <>
-            {/* Lista razgovora */}
-            <div
-              className="flex-shrink-0 flex flex-col rounded-2xl overflow-hidden"
-              style={{ width: 280, background: 'white', border: '1px solid #DDE3DE' }}
-            >
-              <div className="px-4 py-3 font-bold text-sm" style={{ background: '#505A5B', color: 'white' }}>
-                Poruke
+          <div 
+            className="bg-white rounded-2xl flex-1 flex flex-col md:flex-row min-h-[550px] overflow-hidden shadow-sm"
+            style={{ border: '1px solid #DDE3DE' }}
+          >
+            {/* LIJEVA STRANA: Popis razgovora */}
+            <div className="w-full md:w-1/3 flex flex-col bg-white" style={{ borderRight: '1px solid #DDE3DE' }}>
+              <div className="p-4" style={{ borderBottom: '1px solid #DDE3DE', background: '#F9FAF8' }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8A9192' }}>Moji razgovori</p>
               </div>
+
               <div className="flex-1 overflow-y-auto">
-                {convs.map(c => (
-                  <button
-                    key={c.id}
-                    onClick={() => setActive(c.id)}
-                    className="w-full flex items-start gap-3 px-4 py-3 text-left transition-colors"
-                    style={{
-                      background: c.id === activeId ? '#EEEDF9' : 'white',
-                      borderBottom: '1px solid #F4F5F2',
-                      borderLeft: '3px solid ' + (c.id === activeId ? '#A7A5D0' : 'transparent'),
-                      cursor: 'pointer',
-                    }}
-                  >
+                {chats.map((chat) => {
+                  const participantIds = Object.keys(chat.participantNames || {});
+                  const otherId = participantIds.find(id => id !== currentUser?.uid);
+                  const otherName = chat.participantNames?.[otherId] || 'Razgovor';
+                  const isActive = activeChat?.id === chat.id;
+                  const unreadCount = unreadCounts[chat.id] || 0;
+
+                  return (
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg"
-                      style={{ background: '#E8F0EA' }}
+                      key={chat.id}
+                      onClick={() => setActiveChat(chat)}
+                      className="p-4 cursor-pointer transition-colors flex items-center justify-between group relative"
+                      style={{ 
+                        borderBottom: '1px solid #F4F5F2',
+                        background: isActive ? '#EEEDF9' : 'transparent'
+                      }}
                     >
-                      {c.avatar || '💬'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="font-semibold text-xs truncate" style={{ color: '#2B3132' }}>
-                          {c.provider}
-                        </p>
-                        <span className="text-xs flex-shrink-0" style={{ color: '#8A9192' }}>
-                          {c.time}
-                        </span>
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                          style={{ background: '#A7A5D0' }}
+                        >
+                          {otherName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="overflow-hidden">
+                          <h4 className="text-sm font-bold truncate" style={{ color: '#2B3132' }}>{otherName}</h4>
+                          <p className="text-xs truncate" style={{ color: '#8A9192' }}>Otvorite razgovor</p>
+                        </div>
                       </div>
-                      <p className="text-xs truncate mt-0.5" style={{ color: '#8A9192' }}>
-                        {c.lastMessage}
-                      </p>
+
+                      <div className="flex items-center gap-2">
+                        {/* Ljubičasti krug s brojem nepročitanih poruka */}
+                        {unreadCount > 0 && (
+                          <span 
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-sm"
+                            style={{ background: '#A7A5D0' }}
+                          >
+                            {unreadCount}
+                          </span>
+                        )}
+
+                        <button
+                          onClick={(e) => handleDeleteChat(chat.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-opacity border-none bg-transparent hover:bg-red-50 text-red-500 cursor-pointer"
+                          title="Obriši razgovor"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* Prozor za razgovor */}
-            {activeConv && (
-              <div
-                className="flex-1 flex flex-col rounded-2xl overflow-hidden"
-                style={{ background: 'white', border: '1px solid #DDE3DE' }}
-              >
-                {/* Zaglavlje */}
-                <div className="flex items-center gap-3 px-5 py-3" style={{ background: '#505A5B' }}>
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-lg"
-                    style={{ background: '#E8F0EA' }}
-                  >
-                    {activeConv.avatar || '💬'}
+            {/* DESNA STRANA: Chat prozor */}
+            <div className="flex-1 flex flex-col" style={{ background: '#FAFBF9' }}>
+              {activeChat ? (
+                <>
+                  {/* Zaglavlje chata */}
+                  <div className="p-4 bg-white flex items-center gap-3" style={{ borderBottom: '1px solid #DDE3DE' }}>
+                    <div 
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{ background: '#A7A5D0' }}
+                    >
+                      <User size={16} />
+                    </div>
+                    <h3 className="font-bold text-sm" style={{ color: '#2B3132' }}>
+                      {activeChat.participantNames?.[
+                        Object.keys(activeChat.participantNames || {}).find(id => id !== currentUser?.uid)
+                      ] || 'Razgovor'}
+                    </h3>
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-white">{activeConv.provider}</p>
-                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-                      {activeConv.category}
-                    </p>
-                  </div>
-                </div>
 
-                {/* Poruke */}
-                <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
-                  {activeConv.messages.map(msg => (
-                    <div key={msg.id}>
-                      {msg.offer ? (
-                        /* Kartica ponude */
-                        <div className="flex justify-start">
+                  {/* Popis poruka */}
+                  <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+                    {messages.length === 0 ? (
+                      <p className="text-center text-xs my-auto" style={{ color: '#8A9192' }}>
+                        Nema poruka. Napišite prvu poruku u nastavku!
+                      </p>
+                    ) : (
+                      messages.map((msg) => {
+                        const isMe = msg.senderId === currentUser?.uid;
+                        return (
                           <div
-                            className="rounded-2xl overflow-hidden"
-                            style={{
-                              maxWidth: 300,
-                              border:
-                                '2px solid ' +
-                                (msg.offerAccepted ? '#7DA68D' : msg.offerDeclined ? '#DDE3DE' : '#A7A5D0'),
-                              background: 'white',
-                            }}
+                            key={msg.id}
+                            className={`flex flex-col max-w-[70%] ${
+                              isMe ? 'self-end items-end' : 'self-start items-start'
+                            }`}
                           >
                             <div
-                              className="px-4 py-2 text-xs font-bold"
+                              className="p-3 rounded-2xl text-sm"
                               style={{
-                                background: msg.offerAccepted
-                                  ? '#7DA68D'
-                                  : msg.offerDeclined
-                                  ? '#8A9192'
-                                  : '#A7A5D0',
-                                color: 'white',
-                              }}
-                            >
-                              {msg.offerAccepted
-                                ? '✅ Ponuda prihvaćena'
-                                : msg.offerDeclined
-                                ? '❌ Ponuda odbijena'
-                                : '💼 Posebna ponuda'}
-                            </div>
-                            <div className="p-3">
-                              <p className="font-bold text-sm mb-0.5" style={{ color: '#2B3132' }}>
-                                {msg.offer.title}
-                              </p>
-                              <p className="text-xs mb-1" style={{ color: '#505A5B' }}>
-                                {msg.offer.desc}
-                              </p>
-                              <p className="text-base font-extrabold mb-2" style={{ color: '#A7A5D0' }}>
-                                {msg.offer.price}
-                              </p>
-                              {!msg.offerAccepted && !msg.offerDeclined && (
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => acceptOffer(msg)}
-                                    className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white"
-                                    style={{ background: '#7DA68D', border: 'none', cursor: 'pointer' }}
-                                  >
-                                    Prihvati
-                                  </button>
-                                  <button
-                                    onClick={() => declineOffer(msg.id)}
-                                    className="flex-1 py-1.5 rounded-lg text-xs font-bold"
-                                    style={{
-                                      background: '#F4F5F2',
-                                      color: '#505A5B',
-                                      border: '1px solid #DDE3DE',
-                                      cursor: 'pointer',
-                                    }}
-                                  >
-                                    Odbij
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Obična poruka */
-                        <div className={'flex ' + (msg.from === 'user' ? 'justify-end' : 'justify-start')}>
-                          <div className="max-w-xs">
-                            <div
-                              className="px-4 py-2 rounded-2xl text-sm"
-                              style={{
-                                background: msg.from === 'user' ? '#A7A5D0' : '#F4F5F2',
-                                color: msg.from === 'user' ? 'white' : '#2B3132',
-                                borderBottomRightRadius: msg.from === 'user' ? 4 : 16,
-                                borderBottomLeftRadius: msg.from === 'user' ? 16 : 4,
+                                background: isMe ? '#A7A5D0' : '#FFFFFF',
+                                color: isMe ? '#FFFFFF' : '#2B3132',
+                                border: isMe ? 'none' : '1px solid #DDE3DE',
+                                borderBottomRightRadius: isMe ? '2px' : '16px',
+                                borderBottomLeftRadius: isMe ? '16px' : '2px',
                               }}
                             >
                               {msg.text}
                             </div>
-                            <p
-                              className={
-                                'text-xs mt-0.5 ' + (msg.from === 'user' ? 'text-right' : 'text-left')
-                              }
-                              style={{ color: '#8A9192' }}
-                            >
-                              {msg.time}
-                            </p>
+                            <span className="text-[10px] mt-1 px-1" style={{ color: '#8A9192' }}>
+                              {formatTime(msg.createdAt)}
+                            </span>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
 
-                {/* Polje za unos */}
-                <form
-                  onSubmit={sendMessage}
-                  className="flex items-center gap-3 px-4 py-3"
-                  style={{ borderTop: '1px solid #DDE3DE' }}
-                >
-                  <input
-                    type="text"
-                    placeholder="Napiši poruku..."
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    className="flex-1 text-sm rounded-full px-4 py-2 outline-none"
-                    style={{ background: '#F4F5F2', border: '1px solid #DDE3DE', color: '#2B3132' }}
-                  />
-                  <button
-                    type="submit"
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                    style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = '#8886B8')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '#A7A5D0')}
-                  >
-                    <Send size={15} />
-                  </button>
-                </form>
-              </div>
-            )}
-          </>
+                  {/* Unos poruke */}
+                  <form onSubmit={handleSendMessage} className="p-3 bg-white flex gap-2" style={{ borderTop: '1px solid #DDE3DE' }}>
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Napišite poruku..."
+                      className="flex-1 px-4 py-2 rounded-xl text-sm outline-none border focus:border-[#A7A5D0]"
+                      style={{ borderColor: '#DDE3DE' }}
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 rounded-xl text-white transition-colors border-none cursor-pointer flex items-center justify-center"
+                      style={{ background: '#A7A5D0' }}
+                    >
+                      <Send size={16} />
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ color: '#8A9192' }}>
+                  <MessageSquare size={40} className="mb-3 opacity-40" />
+                  <p className="text-sm font-semibold">Odaberite razgovor s lijeve strane za prikaz poruka.</p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

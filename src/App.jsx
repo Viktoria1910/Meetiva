@@ -18,6 +18,7 @@ import Profile       from './pages/Profile';
 import Search        from './pages/Search';
 import ProviderSetup from './pages/ProviderSetup';
 import AdminPanel    from './pages/AdminPanel';
+import ProviderProfile from './pages/ProviderProfile'; // <-- 1. DODANO
 
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -57,6 +58,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } 
+        />
+        {/* 2. DODANA RUTA ZA PROVIDER PROFILE */}
+        <Route 
+          path="/provider-profile" 
+          element={
+            <ProtectedRoute>
+              <ProviderProfile />
             </ProtectedRoute>
           } 
         />

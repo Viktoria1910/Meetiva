@@ -10,11 +10,13 @@ export default function Navbar() {
   const { currentUser, userProfile, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  
   const [pendingCount, setPendingCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
 
+  // 1. Dohvaćanje neodobrenih pružatelja (samo za admine)
   useEffect(() => {
     if (currentUser && userProfile?.role === 'admin') {
-      // SADA: Tražimo pružatelje čiji je status 'pending'
       const q = query(
         collection(db, 'users'),
         where('role', '==', 'provider'),
@@ -28,6 +30,59 @@ export default function Navbar() {
       return () => unsubscribe();
     }
   }, [currentUser, userProfile]);
+
+  // 2. Dohvaćanje broja nepročitanih poruka (za sve prijavljene korisnike)
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    // Dohvati sve razgovore u kojima sudjeluje korisnik
+    const qChats = query(
+      collection(db, 'chats'),
+      where('participants', 'array-contains', currentUser.uid)
+    );
+
+    const unsubscribes = [];
+
+    const unsubscribeChats = onSnapshot(qChats, (snapshot) => {
+      let totals = {};
+
+      if (snapshot.empty) {
+        setUnreadMessagesCount(0);
+        return;
+      }
+
+      snapshot.docs.forEach((chatDoc) => {
+        // Za svaki chat pratimo nepročitane poruke
+        const messagesQ = query(
+          collection(db, 'chats', chatDoc.id, 'messages'),
+          where('read', '==', false)
+        );
+
+        const unsubMsg = onSnapshot(messagesQ, (msgSnapshot) => {
+          // Brojimo samo poruke koje je poslala DRUGA osoba
+          const count = msgSnapshot.docs.filter(
+            docSnap => docSnap.data().senderId !== currentUser.uid
+          ).length;
+
+          totals[chatDoc.id] = count;
+
+          // Izračunaj ukupni zbroj svih nepročitanih poruka iz svih chata-ova
+          const sum = Object.values(totals).reduce((a, b) => a + b, 0);
+          setUnreadMessagesCount(sum);
+        });
+
+        unsubscribes.push(unsubMsg);
+      });
+    });
+
+    return () => {
+      unsubscribeChats();
+      unsubscribes.forEach((unsub) => unsub());
+    };
+  }, [currentUser]);
 
   const handleLogout = async () => {
     try {
@@ -71,15 +126,30 @@ export default function Navbar() {
         {/* Poruke, Rezervacije i uloge prikazuju se SAMO AKO JE KORISNIK PRIJAVLJEN */}
         {currentUser && (
           <>
-            <Link to="/messages" style={navLinkStyle('/messages')}>
-              Poruke
+            <Link 
+              to="/messages" 
+              style={navLinkStyle('/messages')}
+              className="relative flex items-center gap-1.5"
+            >
+              <span>Poruke</span>
+              
+              {/* Ljubičasti krug s brojem nepročitanih poruka */}
+              {unreadMessagesCount > 0 && (
+                <span 
+                  className="px-1.5 py-0.5 text-[11px] font-bold text-white rounded-full flex items-center justify-center leading-none shadow-sm"
+                  style={{ background: '#A7A5D0', minWidth: '18px', height: '18px' }}
+                >
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </Link>
+
             <Link to="/dashboard" style={navLinkStyle('/dashboard')}>
               Rezervacije
             </Link>
 
             {userProfile?.role === 'provider' && (
-              <Link to="/provider-setup" style={navLinkStyle('/provider-setup')}>
+              <Link to="/provider-profile" style={navLinkStyle('/provider-profile')}>
                 Moje usluge
               </Link>
             )}

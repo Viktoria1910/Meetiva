@@ -53,6 +53,8 @@ export default function ProviderSetup() {
         })
         .catch((err) => console.error('Greška pri dohvaćanju pružatelja:', err))
         .finally(() => setLoadingData(false));
+    } else {
+      setLoadingData(false);
     }
   }, [isLoggedIn, user?.uid, user?.role, navigate]);
 
@@ -84,18 +86,48 @@ export default function ProviderSetup() {
     }));
   };
 
-  const isValid = () => {
-    return (
-      form.businessName.trim().length >= 3 &&
-      form.oib.trim().length === 11 &&
-      form.city.trim().length > 0 &&
-      form.desc.trim().length >= 30 &&
-      form.location.trim().length > 0 &&
-      Number(form.basePrice) > 0 &&
-      form.phone.trim().length > 0 &&
-      form.packages.length > 0 &&
-      form.packages.every((p) => p.name.trim() && Number(p.price) > 0)
-    );
+  // Provjera valjanosti
+  const validateForm = () => {
+    if (!form.businessName.trim() || form.businessName.trim().length < 3) {
+      alert('Naziv obrta/tvrtke mora imati najmanje 3 znaka.');
+      return false;
+    }
+    if (form.oib.trim().length !== 11) {
+      alert('OIB mora sadržavati točno 11 znamenki!');
+      return false;
+    }
+    if (!form.city.trim()) {
+      alert('Molimo unesite Grad / Mjesto.');
+      return false;
+    }
+    if (!form.desc.trim() || form.desc.trim().length < 30) {
+      alert(`Opis usluge mora imati barem 30 znakova! Trenutno ima: ${form.desc.trim().length}`);
+      return false;
+    }
+    if (!form.location.trim()) {
+      alert('Molimo unesite Regiju / Lokaciju djelovanja.');
+      return false;
+    }
+    if (!form.basePrice || Number(form.basePrice) <= 0) {
+      alert('Početna cijena mora biti broj veći od 0.');
+      return false;
+    }
+    if (!form.phone.trim()) {
+      alert('Molimo unesite kontakt telefon.');
+      return false;
+    }
+    if (!form.packages.length) {
+      alert('Morate dodati barem jedan paket.');
+      return false;
+    }
+    for (let i = 0; i < form.packages.length; i++) {
+      const p = form.packages[i];
+      if (!p.name.trim() || !p.price || Number(p.price) <= 0) {
+        alert(`Paket ${i + 1} mora imati naziv i cijenu veću od 0.`);
+        return false;
+      }
+    }
+    return true;
   };
 
   const buildProvider = (status) => ({
@@ -107,9 +139,12 @@ export default function ProviderSetup() {
     address: form.address || '',
     desc: form.desc || '',
     location: form.location || '',
-    basePrice: form.basePrice || 0,
+    basePrice: Number(form.basePrice) || 0,
     phone: form.phone || '',
-    packages: form.packages || [],
+    packages: form.packages.map((p) => ({
+      ...p,
+      price: Number(p.price) || 0,
+    })),
     status: status,
     providerName: user?.displayName || user?.name || user?.email?.split('@')[0] || 'Korisnik',
     email: user?.email || '',
@@ -123,23 +158,17 @@ export default function ProviderSetup() {
       showToast('Nacrt je uspješno spremljen!');
     } catch (err) {
       console.error('Greška pri spremanju nacrta:', err);
-      showToast('Greška pri spremanju nacrta.');
+      alert('Greška pri spremanju nacrta: ' + err.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
-    if (!isValid()) {
-      if (form.oib.trim().length !== 11) {
-        alert('OIB mora sadržavati točno 11 znamenki!');
-      } else if (form.desc.trim().length < 30) {
-        alert('Opis usluge mora sadržavati barem 30 znakova!');
-      } else {
-        alert('Molimo ispravno popunite sva obavezna polja i pakete.');
-      }
+    // 1. Provjera polja s točnim porukama ako nešto nedostaje
+    if (!validateForm()) {
       return;
     }
 
@@ -155,14 +184,12 @@ export default function ProviderSetup() {
 
       if (typeof updateUserData === 'function') {
         await updateUserData({ providerStatus: 'pending' });
-      } else {
-        console.warn('Upozorenje: updateUserData funkcija nije pronađena u AuthContext-u.');
       }
 
       setSubmitted(true);
     } catch (err) {
       console.error('Detalji greške pri slanju:', err);
-      alert(`Došlo je do greške: ${err.message || 'Nepoznata greška'}`);
+      alert(`Došlo je do greške pri spremanju u bazu: ${err.message || 'Nepoznata greška'}`);
     } finally {
       setSaving(false);
     }
@@ -268,8 +295,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('businessName', e.target.value)}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="npr. Foto Studio Sunce d.o.o."
                   />
                   {form.businessName.length > 0 && form.businessName.trim().length < 3 && (
@@ -288,8 +313,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('oib', e.target.value.replace(/\D/g, '').slice(0, 11))}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="12345678901"
                   />
                   {form.oib.length > 0 && form.oib.length !== 11 && (
@@ -310,8 +333,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('city', e.target.value)}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="npr. Zagreb"
                   />
                 </div>
@@ -325,8 +346,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('address', e.target.value)}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="npr. Ilica 10"
                   />
                 </div>
@@ -335,7 +354,7 @@ export default function ProviderSetup() {
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: '#505A5B' }}>
                   Opis usluge *{' '}
-                  <span style={{ color: '#8A9192', fontWeight: 400 }}>
+                  <span style={{ color: form.desc.trim().length >= 30 ? '#7DA68D' : '#B03030', fontWeight: 600 }}>
                     ({form.desc.trim().length}/30 min)
                   </span>
                 </label>
@@ -345,8 +364,6 @@ export default function ProviderSetup() {
                   rows={4}
                   className={inputCls}
                   style={{ ...inputStyle, resize: 'vertical' }}
-                  onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                  onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                   placeholder="Opiši što nudiš, svoju specijalizaciju, iskustvo..."
                 />
               </div>
@@ -361,8 +378,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('location', e.target.value)}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="npr. Grad Zagreb i Zagrebačka županija"
                   />
                 </div>
@@ -377,8 +392,6 @@ export default function ProviderSetup() {
                     onChange={(e) => set('basePrice', e.target.value)}
                     className={inputCls}
                     style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                    onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                     placeholder="150"
                   />
                 </div>
@@ -393,8 +406,6 @@ export default function ProviderSetup() {
                   onChange={(e) => set('phone', e.target.value)}
                   className={inputCls}
                   style={inputStyle}
-                  onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                  onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                   placeholder="+385 91 234 5678"
                 />
               </div>
@@ -441,8 +452,6 @@ export default function ProviderSetup() {
                           cursor: 'pointer',
                           color: '#8A9192',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#B03030')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#8A9192')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -458,8 +467,6 @@ export default function ProviderSetup() {
                         onChange={(e) => setPkg(pkg.id, 'name', e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border outline-none text-sm"
                         style={{ ...inputStyle, background: 'white' }}
-                        onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                        onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                         placeholder="npr. Basic, Premium..."
                       />
                     </div>
@@ -474,8 +481,6 @@ export default function ProviderSetup() {
                         onChange={(e) => setPkg(pkg.id, 'price', e.target.value)}
                         className="w-full px-3 py-2 rounded-lg border outline-none text-sm"
                         style={{ ...inputStyle, background: 'white' }}
-                        onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                        onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                         placeholder="300"
                       />
                     </div>
@@ -489,8 +494,6 @@ export default function ProviderSetup() {
                       onChange={(e) => setPkg(pkg.id, 'desc', e.target.value)}
                       className="w-full px-3 py-2 rounded-lg border outline-none text-sm"
                       style={{ ...inputStyle, background: 'white' }}
-                      onFocus={(e) => (e.target.style.borderColor = '#A7A5D0')}
-                      onBlur={(e) => (e.target.style.borderColor = '#DDE3DE')}
                       placeholder="Što je uključeno..."
                     />
                   </div>
@@ -515,7 +518,8 @@ export default function ProviderSetup() {
               {saving ? 'Spremanje...' : 'Spremi nacrt'}
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={saving}
               className="flex-1 py-3 rounded-full font-semibold text-sm text-white flex items-center justify-center gap-2"
               style={{
@@ -527,11 +531,6 @@ export default function ProviderSetup() {
               <Send size={15} /> {saving ? 'Slanje...' : 'Pošalji zahtjev adminu'}
             </button>
           </div>
-          {!isValid() && (
-            <p className="text-xs text-center" style={{ color: '#8A9192' }}>
-              Ispuni sva obavezna polja (*) – OIB mora imati 11 znamenki, a Opis barem 30 znakova.
-            </p>
-          )}
         </form>
       </div>
     </div>

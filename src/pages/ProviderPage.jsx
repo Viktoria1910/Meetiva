@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { MessageSquare, Star, MapPin, ArrowLeft, Sparkles } from 'lucide-react';
-import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { 
+  doc, 
+  getDoc, 
+  collection, 
+  query, 
+  where, 
+  getDocs, 
+  addDoc, 
+  onSnapshot, 
+  orderBy, 
+  serverTimestamp, 
+  updateDoc 
+} from 'firebase/firestore';
 import { categoryData } from '../utils/categoryData';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
@@ -18,12 +30,13 @@ function ratingLabel(r) {
   if (r >= 4.9) return 'Izvrsno';
   if (r >= 4.7) return 'Odlično';
   if (r >= 4.5) return 'Vrlo dobro';
-  return 'Dobro';
+  if (r >= 4.0) return 'Dobro';
+  return 'Novo / Bez ocjena';
 }
 
 export default function ProviderPage() {
   const { category, id } = useParams();
-  const { currentUser, isLoggedIn } = useAuth();
+  const { currentUser, userProfile, isLoggedIn } = useAuth();
   const navigate = useNavigate();
 
   const userIsAuthenticated = Boolean(currentUser || isLoggedIn);
@@ -34,11 +47,20 @@ export default function ProviderPage() {
   const [loading, setLoading] = useState(true);
   const [startingChat, setStartingChat] = useState(false);
 
+  // Stanja za stvarne recenzije
+  const [reviews, setReviews] = useState([]);
+  const [newRating, setNewRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // Stanja za neprijavljenu upit-formu
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
 
+  // 1. Učitavanje pružatelja
   useEffect(() => {
     const loadProvider = async () => {
       setLoading(true);
@@ -48,7 +70,10 @@ export default function ProviderPage() {
       const localProvider = localData && localData.providers?.find(p => String(p.id) === String(id));
 
       if (localProvider) {
-        setProvider(localProvider);
+        setProvider({
+          ...localProvider,
+          id: String(localProvider.id)
+        });
         setLoading(false);
         return;
       }
@@ -56,18 +81,27 @@ export default function ProviderPage() {
       // 2. Firestore baza
       try {
         const docRef = doc(db, 'providers', id);
-        const docSnap = await getDoc(docRef);
+        let docSnap = await getDoc(docRef);
+
+        // Fallback na 'users' ako nije u 'providers'
+        if (!docSnap.exists()) {
+          const userRef = doc(db, 'users', id);
+          docSnap = await getDoc(userRef);
+        }
 
         if (docSnap.exists()) {
           const p = docSnap.data();
           setProvider({
-            id: docSnap.id,
-            name: p.businessName || p.providerName || p.name || 'Pružatelj usluga',
-            location: p.location || p.city || 'Hrvatska',
-            price: p.basePrice ? `Od ${p.basePrice} €` : (p.price ? `Od ${p.price} €` : 'Na upit'),
-            rating: p.rating || 5.0,
-            desc: p.desc || p.description || 'Profesionalne usluge za tvoj događaj.',
-          });
+  id: docSnap.id,
+  name: p.businessName || p.providerName || p.name || 'Pružatelj usluga',
+  location: p.location || p.city || 'Hrvatska',
+  price: p.basePrice
+    ? `Od ${p.basePrice} €`
+    : (p.price ? `Od ${p.price} €` : 'Na upit'),
+  rating: p.rating || p.averageRating || 5.0,
+  desc: p.desc || p.description || 'Profesionalne usluge za tvoj događaj.',
+  images: p.images?.length ? p.images : (p.gallery || []),
+});
         } else {
           setProvider(null);
         }
@@ -82,6 +116,48 @@ export default function ProviderPage() {
     loadProvider();
   }, [category, id]);
 
+  // 2. Slušanje i učitavanje pravih recenzija u realnom vremenu
+  useEffect(() => {
+    if (!id) return;
+
+    const q = query(
+      collection(db, 'reviews'),
+      where('providerId', '==', String(id)),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedReviews = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setReviews(fetchedReviews);
+
+      // Izračun i ažuriranje prosječne ocjene ako ima recenzija
+      if (fetchedReviews.length > 0) {
+        const avg = fetchedReviews.reduce((acc, r) => acc + r.rating, 0) / fetchedReviews.length;
+        const formattedAvg = Number(avg.toFixed(1));
+        
+        setProvider(prev => prev ? { ...prev, rating: formattedAvg } : null);
+
+        // Opcionalno ažuriranje ocjene u bazi
+        updateDoc(doc(db, 'providers', String(id)), {
+          rating: formattedAvg,
+          reviewCount: fetchedReviews.length
+        }).catch(() => {
+          updateDoc(doc(db, 'users', String(id)), {
+            averageRating: formattedAvg,
+            reviewCount: fetchedReviews.length
+          }).catch(() => {});
+        });
+      }
+    }, (error) => {
+      console.error("Greška pri učitavanju recenzija:", error);
+    });
+
+    return () => unsubscribe();
+  }, [id]);
+
   // Funkcija za pokretanje/otvaranje chata
   const handleStartChat = async () => {
     if (!currentUser) {
@@ -94,7 +170,6 @@ export default function ProviderPage() {
     try {
       const chatsRef = collection(db, 'chats');
       
-      // Provjera postoji li već chat između ova dva korisnika
       const q = query(
         chatsRef,
         where('participants', 'array-contains', currentUser.uid)
@@ -105,21 +180,19 @@ export default function ProviderPage() {
 
       querySnapshot.forEach((docSnap) => {
         const chatData = docSnap.data();
-        if (chatData.participants.includes(provider.id)) {
+        if (chatData.participants.includes(String(provider.id))) {
           existingChatId = docSnap.id;
         }
       });
 
       if (existingChatId) {
-        // Chat postoji, idi na njega
         navigate('/messages', { state: { activeChatId: existingChatId } });
       } else {
-        // Stvori novi chat u Firestore bazi
         const newChatRef = await addDoc(chatsRef, {
-          participants: [currentUser.uid, provider.id],
+          participants: [currentUser.uid, String(provider.id)],
           participantNames: {
-            [currentUser.uid]: currentUser.displayName || currentUser.email || 'Korisnik',
-            [provider.id]: provider.name
+            [currentUser.uid]: currentUser.displayName || userProfile?.name || currentUser.email || 'Korisnik',
+            [String(provider.id)]: provider.name
           },
           lastMessage: '',
           updatedAt: serverTimestamp(),
@@ -130,10 +203,37 @@ export default function ProviderPage() {
       }
     } catch (error) {
       console.error("Greška pri pokretanju razgovora:", error);
-      // Fallback ako ne uspije Firestore upis
       navigate('/messages', { state: { providerId: provider.id, providerName: provider.name } });
     } finally {
       setStartingChat(false);
+    }
+  };
+
+  // Funkcija za objavu nove recenzije
+  const handleAddReview = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return navigate('/login');
+    if (!newComment.trim()) return alert("Molimo unesite komentar.");
+
+    setSubmittingReview(true);
+
+    try {
+      await addDoc(collection(db, 'reviews'), {
+        providerId: String(id),
+        userId: currentUser.uid,
+        userName: userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || 'Korisnik',
+        rating: Number(newRating),
+        comment: newComment.trim(),
+        createdAt: serverTimestamp()
+      });
+
+      setNewComment('');
+      setNewRating(5);
+    } catch (err) {
+      console.error("Greška pri spremanju recenzije:", err);
+      alert("Došlo je do pogreške pri objavi recenzije.");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -158,6 +258,7 @@ export default function ProviderPage() {
 
   const handleSend = (e) => { e.preventDefault(); setSent(true); };
   const stars = Math.round(provider.rating || 5);
+  const isOwnProfile = currentUser && String(currentUser.uid) === String(provider.id);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
@@ -178,14 +279,37 @@ export default function ProviderPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2" style={{ height: 280 }}>
           <div className="col-span-1 md:col-span-2 row-span-2 rounded-2xl overflow-hidden flex items-center justify-center"
             style={{ background: GALLERY_GRADIENTS[0], minHeight: 130 }}>
-            <Sparkles size={64} style={{ color: '#2B3132', opacity: 0.25 }} />
+            <img
+  src={provider.images?.[0]}
+  alt={provider.name}
+  className="w-full h-full object-cover"
+/>
           </div>
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="rounded-xl overflow-hidden flex items-center justify-center"
-              style={{ background: GALLERY_GRADIENTS[i], height: 136 }}>
-              <Sparkles size={32} style={{ color: '#2B3132', opacity: 0.25 }} />
-            </div>
-          ))}
+  <div
+    key={i}
+    className="rounded-xl overflow-hidden"
+    style={{ height: 136 }}
+  >
+    {provider.images?.[i] ? (
+      <img
+        src={provider.images[i]}
+        alt={`${provider.name} ${i + 1}`}
+        className="w-full h-full object-cover"
+      />
+    ) : (
+      <div
+        className="w-full h-full flex items-center justify-center"
+        style={{ background: GALLERY_GRADIENTS[i] }}
+      >
+        <Sparkles
+          size={32}
+          style={{ color: '#2B3132', opacity: 0.25 }}
+        />
+      </div>
+    )}
+  </div>
+))}
         </div>
       </div>
 
@@ -220,11 +344,9 @@ export default function ProviderPage() {
 
           {/* About */}
           <div className="bg-white rounded-2xl p-5 sm:p-6" style={{ border: '1px solid #DDE3DE' }}>
-            <h2 className="font-bold text-base mb-2" style={{ color: '#2B3132' }}>O pružatelju usluga</h2>
+            <h2 className="font-bold text-base mb-2" style={{ color: '#2B3132' }}>O nama</h2>
             <p className="text-sm leading-relaxed" style={{ color: '#505A5B' }}>{provider.desc}</p>
             <p className="text-sm mt-2 leading-relaxed" style={{ color: '#505A5B' }}>
-              S višegodišnjim iskustvom i strastvenošću prema radu, pružamo usluge najviše razine.
-              Svaki detalj je pažljivo planiran kako bi vaš poseban dan bio nezaboravan.
             </p>
           </div>
 
@@ -256,53 +378,108 @@ export default function ProviderPage() {
             </div>
           </div>
 
-          {/* Reviews */}
+          {/* Reviews Sekcija */}
           <div className="bg-white rounded-2xl p-5 sm:p-6" style={{ border: '1px solid #DDE3DE' }}>
-            <h2 className="font-bold text-base mb-3" style={{ color: '#2B3132' }}>Recenzije</h2>
-            <div className="pb-3 mb-3" style={{ borderBottom: '1px solid #DDE3DE' }}>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                  style={{ background: '#7DA68D' }}>M</div>
-                <span className="font-semibold text-sm" style={{ color: '#2B3132' }}>Maja Horvat</span>
-                <span className="text-xs" style={{ color: '#8A9192' }}>Listopada 2024</span>
-              </div>
-              <p className="text-sm" style={{ color: '#505A5B' }}>Savršena usluga! Sve je bilo točno onako kako smo zamislili. Toplo preporučujem.</p>
+            <div className="flex items-center justify-between mb-4 pb-2" style={{ borderBottom: '1px solid #DDE3DE' }}>
+              <h2 className="font-bold text-base" style={{ color: '#2B3132' }}>
+                Recenzije ({reviews.length})
+              </h2>
+              {reviews.length > 0 && (
+                <span className="text-sm font-bold flex items-center gap-1" style={{ color: '#7DA68D' }}>
+                  <Star size={15} fill="#7DA68D" stroke="none" /> {provider.rating}
+                </span>
+              )}
             </div>
-            
-            <div className="relative">
-              <div style={{ 
-                filter: userIsAuthenticated ? 'none' : 'blur(5px)', 
-                pointerEvents: userIsAuthenticated ? 'auto' : 'none' 
-              }}>
-                {[
-                  { init: 'T', name: 'Tomislav Petrić', date: 'Rujna 2024',  text: 'Odlično! Brzi odgovor, profesionalan pristup.' },
-                  { init: 'A', name: 'Ana Babić',       date: 'Srpnja 2024', text: 'Nevjerojatna kvaliteta. Naša svadba je bila savršena.' },
-                ].map(r => (
-                  <div key={r.name} className="pb-3 mb-3" style={{ borderBottom: '1px solid #DDE3DE' }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-                        style={{ background: '#A7A5D0' }}>{r.init}</div>
-                      <span className="font-semibold text-sm" style={{ color: '#2B3132' }}>{r.name}</span>
-                      <span className="text-xs" style={{ color: '#8A9192' }}>{r.date}</span>
-                    </div>
-                    <p className="text-sm" style={{ color: '#505A5B' }}>{r.text}</p>
-                  </div>
-                ))}
-              </div>
 
-              {!userIsAuthenticated && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center bg-white rounded-xl p-4" style={{ border: '1px solid #DDE3DE', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
-                    <p className="text-sm font-semibold mb-2" style={{ color: '#2B3132' }}>Prijavi se da vidiš sve recenzije</p>
-                    <Link to="/login" className="inline-block px-4 py-1.5 rounded-full text-sm font-semibold text-white"
-                      style={{ background: '#A7A5D0', textDecoration: 'none' }}>
-                      Prijavi se
-                    </Link>
-                  </div>
+            {/* Obrazac za unos nove recenzije */}
+            {userIsAuthenticated && !isOwnProfile ? (
+              <form onSubmit={handleAddReview} className="mb-6 p-4 rounded-xl" style={{ background: '#FAFBF9', border: '1px solid #DDE3DE' }}>
+                <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: '#505A5B' }}>Napišite svoju recenziju</h3>
+                
+                {/* Zvjezdice za odabir ocjene */}
+                <div className="flex items-center gap-1 mb-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      type="button"
+                      key={star}
+                      onClick={() => setNewRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="bg-transparent border-none cursor-pointer p-0.5 focus:outline-none"
+                    >
+                      <Star
+                        size={20}
+                        fill={(hoverRating || newRating) >= star ? '#7DA68D' : 'none'}
+                        stroke={(hoverRating || newRating) >= star ? '#7DA68D' : '#DDE3DE'}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold ml-2" style={{ color: '#505A5B' }}>{newRating} / 5</span>
                 </div>
+
+                <textarea
+                  rows="3"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Napišite vaše iskustvo..."
+                  className="w-full p-2.5 rounded-lg text-xs outline-none resize-none mb-2"
+                  style={{ border: '1px solid #DDE3DE', color: '#2B3132', background: 'white' }}
+                />
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={submittingReview}
+                    className="px-4 py-1.5 rounded-lg text-white text-xs font-bold border-none cursor-pointer transition-colors"
+                    style={{ background: '#7DA68D', opacity: submittingReview ? 0.7 : 1 }}
+                  >
+                    {submittingReview ? 'Slanje...' : 'Objavi recenziju'}
+                  </button>
+                </div>
+              </form>
+            ) : !userIsAuthenticated ? (
+              <div className="p-3 text-center rounded-xl mb-6" style={{ background: '#FAFBF9', border: '1px solid #DDE3DE' }}>
+                <p className="text-xs" style={{ color: '#8A9192' }}>
+                  <Link to="/login" className="font-bold underline" style={{ color: '#A7A5D0' }}>Prijavite se</Link> kako biste ostavili recenziju.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Prikaz pravih recenzija iz Firestore baze */}
+            <div className="flex flex-col gap-3">
+              {reviews.length === 0 ? (
+                <p className="text-xs text-center py-4" style={{ color: '#8A9192' }}>
+                  Još nema recenzija za ovog pružatelja.
+                </p>
+              ) : (
+                reviews.map((r) => (
+                  <div key={r.id} className="pb-3 mb-1" style={{ borderBottom: '1px solid #F4F5F2' }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                          style={{ background: '#A7A5D0' }}>
+                          {(r.userName || 'K')[0].toUpperCase()}
+                        </div>
+                        <span className="font-semibold text-sm" style={{ color: '#2B3132' }}>{r.userName}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={12}
+                            fill={s <= r.rating ? '#7DA68D' : 'none'}
+                            stroke={s <= r.rating ? '#7DA68D' : '#DDE3DE'}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-sm pl-9" style={{ color: '#505A5B' }}>{r.comment}</p>
+                  </div>
+                ))
               )}
             </div>
           </div>
+
         </div>
 
         {/* Sidebar */}

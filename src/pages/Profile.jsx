@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, UserCheck, KeyRound, Save, X } from 'lucide-react';
+import { LogOut, KeyRound, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { getProviderByUserId } from '../utils/providerStorage';
 import { categoryData } from '../utils/categoryData';
 
 export default function Profile() {
-  const { user, currentUser, isLoggedIn, logout, updateUserData, updatePasswordUser } = useAuth();
+  // Prilagođeno tvom AuthContextu (koristimo currentUser, userProfile i loading)
+  const { currentUser, userProfile, loading, logout, updateUserData, updatePasswordUser } = useAuth();
   const navigate = useNavigate();
 
   // Stanja za uređivanje osobnih podataka
@@ -16,35 +17,43 @@ export default function Profile() {
 
   // Stanja za promjenu lozinke
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Status poruke
   const [message, setMessage] = useState({ type: '', text: '' });
-
   const [providerProfile, setProviderProfile] = useState(null);
 
   useEffect(() => {
-    if (user) {
-      setName(user.name || '');
-      setEmail(user.email || '');
+    if (userProfile || currentUser) {
+      setName(userProfile?.name || currentUser?.displayName || '');
+      setEmail(currentUser?.email || userProfile?.email || '');
     }
-    if (user?.role === 'provider') {
-      getProviderByUserId(user.uid).then(setProviderProfile);
+    if (userProfile?.role === 'provider' && currentUser?.uid) {
+      getProviderByUserId(currentUser.uid).then(setProviderProfile);
     }
-  }, [user]);
+  }, [userProfile, currentUser]);
 
-  if (!isLoggedIn) {
+  // 1. DOK SE PODACI UČITAVAJU DOK TRAJE PROVJERU AUTENTIFIKACIJE
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F4F5F2]">
+        <p className="text-sm font-semibold text-[#8A9192]">Učitavanje profila...</p>
+      </div>
+    );
+  }
+
+  // 2. AKO KORISNIK DEFINITIVNO NIJE PRIJAVLJEN
+  if (!currentUser) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center bg-white rounded-2xl p-10" style={{ border: '1px solid #DDE3DE' }}>
+          <div className="text-center bg-white rounded-2xl p-10 shadow-sm" style={{ border: '1px solid #DDE3DE' }}>
             <p className="text-lg font-bold mb-2" style={{ color: '#2B3132' }}>Niste prijavljeni</p>
             <button 
               onClick={() => navigate('/login')}
-              className="px-6 py-2 rounded-full font-semibold text-white text-sm mt-2"
-              style={{ background: '#A7A5D0', border: 'none', cursor: 'pointer' }}
+              className="px-6 py-2 rounded-full font-semibold text-white text-sm mt-2 cursor-pointer"
+              style={{ background: '#A7A5D0', border: 'none' }}
             >
               Prijava
             </button>
@@ -90,7 +99,6 @@ export default function Profile() {
       }
       setMessage({ type: 'success', text: 'Lozinka je uspješno promijenjena!' });
       setIsChangingPassword(false);
-      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err) {
@@ -98,8 +106,8 @@ export default function Profile() {
     }
   };
 
-  const providerStatus = providerProfile?.status || user?.providerStatus;
-  const catData = user?.category ? categoryData[user.category] : null;
+  const providerStatus = providerProfile?.status || userProfile?.providerStatus;
+  const catData = userProfile?.category ? categoryData[userProfile.category] : null;
 
   const statusInfo = {
     setup:    { bg: '#FFF3CD', color: '#856404', text: 'Profil nije postavljen', action: '/provider-setup', actionLabel: 'Postavi profil' },
@@ -108,6 +116,9 @@ export default function Profile() {
     approved: { bg: '#E8F0EA', color: '#4A8060', text: 'Aktivan — vidljiv korisnicima', action: '/provider-setup', actionLabel: 'Uredi profil' },
     rejected: { bg: '#FEE8E8', color: '#B03030', text: 'Odbijen — uredi i pokušaj opet', action: '/provider-setup', actionLabel: 'Uredi i ponovi zahtjev' },
   }[providerStatus] || null;
+
+  const displayName = userProfile?.name || currentUser?.displayName || 'Korisnik';
+  const displayEmail = currentUser?.email || userProfile?.email || '-';
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
@@ -118,11 +129,11 @@ export default function Profile() {
             className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-extrabold text-white"
             style={{ background: '#A7A5D0', flexShrink: 0 }}
           >
-            {(user?.name || user?.email || 'K').charAt(0).toUpperCase()}
+            {displayName.charAt(0).toUpperCase()}
           </div>
           <div>
-            <h1 className="text-2xl font-extrabold text-white">{user?.name || 'Korisnik'}</h1>
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{user?.email}</p>
+            <h1 className="text-2xl font-extrabold text-white">{displayName}</h1>
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>{displayEmail}</p>
           </div>
         </div>
       </div>
@@ -140,7 +151,7 @@ export default function Profile() {
             }}
           >
             <span>{message.text}</span>
-            <button onClick={() => setMessage({ type: '', text: '' })} className="cursor-pointer">
+            <button onClick={() => setMessage({ type: '', text: '' })} className="cursor-pointer border-none bg-transparent">
               <X size={16} />
             </button>
           </div>
@@ -153,7 +164,7 @@ export default function Profile() {
             {!isEditingInfo && (
               <button 
                 onClick={() => setIsEditingInfo(true)}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border-none"
                 style={{ background: '#EEEDF9', color: '#8886B8', cursor: 'pointer' }}
               >
                 Uredi podatke
@@ -164,9 +175,9 @@ export default function Profile() {
           {!isEditingInfo ? (
             <div className="flex flex-col gap-3">
               {[
-                ['Ime i prezime', user?.name || '-'], 
-                ['Email adresa', user?.email || '-'], 
-                ['Tip računa', user?.role === 'provider' ? 'Pružatelj usluga' : 'Korisnik']
+                ['Ime i prezime', displayName], 
+                ['Email adresa', displayEmail], 
+                ['Tip računa', userProfile?.role === 'provider' ? 'Pružatelj usluga' : (userProfile?.role === 'admin' ? 'Administrator' : 'Korisnik')]
               ].map(([lbl, val]) => (
                 <div key={lbl} className="flex items-center justify-between py-2" style={{ borderBottom: '1px solid #F4F5F2' }}>
                   <span className="text-sm font-medium" style={{ color: '#505A5B' }}>{lbl}</span>
@@ -201,7 +212,7 @@ export default function Profile() {
               <div className="flex gap-2 mt-2">
                 <button 
                   type="submit" 
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 border-none"
                   style={{ background: '#A7A5D0', cursor: 'pointer' }}
                 >
                   <Save size={14} /> Spremi
@@ -209,7 +220,7 @@ export default function Profile() {
                 <button 
                   type="button" 
                   onClick={() => setIsEditingInfo(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold border-none"
                   style={{ background: '#F4F5F2', color: '#505A5B', cursor: 'pointer' }}
                 >
                   Odustani
@@ -226,7 +237,7 @@ export default function Profile() {
             {!isChangingPassword && (
               <button 
                 onClick={() => setIsChangingPassword(true)}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border-none"
                 style={{ background: '#F4F5F2', color: '#505A5B', cursor: 'pointer' }}
               >
                 Promijeni lozinku
@@ -263,7 +274,7 @@ export default function Profile() {
               <div className="flex gap-2 mt-2">
                 <button 
                   type="submit" 
-                  className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-white flex items-center gap-2 border-none"
                   style={{ background: '#A7A5D0', cursor: 'pointer' }}
                 >
                   <KeyRound size={14} /> Spremi novu lozinku
@@ -271,7 +282,7 @@ export default function Profile() {
                 <button 
                   type="button" 
                   onClick={() => setIsChangingPassword(false)}
-                  className="px-4 py-2 rounded-xl text-sm font-semibold"
+                  className="px-4 py-2 rounded-xl text-sm font-semibold border-none"
                   style={{ background: '#F4F5F2', color: '#505A5B', cursor: 'pointer' }}
                 >
                   Odustani
@@ -282,7 +293,7 @@ export default function Profile() {
         </div>
 
         {/* Status pružatelja usluga (Provider) */}
-        {user?.role === 'provider' && statusInfo && (
+        {userProfile?.role === 'provider' && statusInfo && (
           <div className="bg-white rounded-2xl p-6" style={{ border: '1px solid #DDE3DE' }}>
             <h2 className="font-bold text-base mb-4" style={{ color: '#2B3132' }}>Status pružatelja usluga</h2>
             <div className="flex items-center justify-between gap-3 flex-wrap">
