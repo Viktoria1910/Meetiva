@@ -2,9 +2,12 @@
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase';
+import { collection, query, where, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 
 const STATUS_COLORS = {
   confirmed: { bg: '#E8F0EA', color: '#4A8060', label: 'Potvrđeno' },
+  accepted:  { bg: '#E8F0EA', color: '#4A8060', label: 'Potvrđeno' },
   pending:   { bg: '#EEEDF9', color: '#7A78B8', label: 'U obradi'  },
   completed: { bg: '#F4F5F2', color: '#505A5B', label: 'Završeno'  },
 };
@@ -14,35 +17,57 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [reservations, setReservations] = useState([]);
+  const [loadingReservations, setLoadingReservations] = useState(true);
 
-  // Učitavanje stvarnih rezervacija iz localStorage-a
+  // Učitavanje rezervacija iz Firebase Firestore baze u realnom vremenu
   useEffect(() => {
-    try {
-      const savedReservations = JSON.parse(localStorage.getItem('meetiva_reservations')) || [];
-      setReservations(savedReservations);
-    } catch (e) {
-      console.error('Greška pri učitavanju rezervacija:', e);
-      setReservations([]);
-    }
-  }, []);
+  // Ako korisnik nije prijavljen, odmah prekini i nemoj slati upit u Firebase!
+  if (!currentUser?.uid) {
+    setReservations([]);
+    setLoadingReservations(false);
+    return;
+  }
 
-  // Funkcija za uklanjanje/otkazivanje rezervacije
-  const removeReservation = (id) => {
-    const updated = reservations.filter(r => r.id !== id);
-    setReservations(updated);
+  setLoadingReservations(true);
+
+  const q = query(
+    collection(db, 'bookings'),
+    where('userId', '==', currentUser.uid)
+  );
+
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const fetchedReservations = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
+    setReservations(fetchedReservations);
+    setLoadingReservations(false);
+  }, (error) => {
+    console.error('Greška pri dohvaćanju rezervacija iz Firebasea:', error);
+    setLoadingReservations(false);
+  });
+
+  return () => unsubscribe();
+}, [currentUser?.uid]);
+
+  // Funkcija za uklanjanje/otkazivanje rezervacije iz Firebase baze
+  const removeReservation = async (id) => {
+    if (!window.confirm("Jeste li sigurni da želite ukloniti ovu rezervaciju?")) return;
+
     try {
-      localStorage.setItem('meetiva_reservations', JSON.stringify(updated));
+      await deleteDoc(doc(db, 'bookings', id));
     } catch (e) {
-      console.error('Greška pri spremanju rezervacija:', e);
+      console.error('Greška pri brisanju rezervacije:', e);
+      alert('Došlo je do greške pri brisanju rezervacije.');
     }
   };
 
   // 1. Prikaži učitavanje dok Firebase ne dohvati stanje
-  if (loading) {
+  if (loading || loadingReservations) {
     return (
       <div className="min-h-screen flex flex-col" style={{ background: '#F4F5F2' }}>
         <div className="flex-1 flex items-center justify-center">
-          <p className="text-gray-500 font-medium text-sm">Učitavanje...</p>
+          <p className="text-gray-500 font-medium text-sm">Učitavanje rezervacija...</p>
         </div>
       </div>
     );
@@ -100,25 +125,35 @@ export default function Dashboard() {
             </button>
           </div>
         ) : (
-          /* Prikaz stvarnih rezervacija */
+          /* Prikaz stvarnih rezervacija iz Firebasea */
           <div className="flex flex-col gap-4">
             {reservations.map(r => {
               const s = STATUS_COLORS[r.status] || STATUS_COLORS.pending;
               return (
                 <div
                   key={r.id}
-                  className="bg-white rounded-2xl p-5 flex items-center justify-between gap-4"
+                  className="bg-white rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm"
                   style={{ border: '1px solid #DDE3DE' }}
                 >
                   <div>
-                    <h3 className="font-bold text-base" style={{ color: '#2B3132' }}>{r.provider}</h3>
-                    <p className="text-sm mt-0.5" style={{ color: '#505A5B' }}>{r.title}</p>
+                    <h3 className="font-bold text-base" style={{ color: '#2B3132' }}>
+                      {r.providerName || 'Pružatelj usluga'}
+                    </h3>
+                    <p className="text-sm mt-0.5 font-medium" style={{ color: '#505A5B' }}>{r.title}</p>
                     <p className="text-xs mt-1" style={{ color: '#8A9192' }}>
-                      📅 {r.date} · {r.category}
+                      📅 {r.date || 'Po dogovoru'}
                     </p>
+                    {r.description && (
+                      <p className="text-xs mt-1 text-gray-500 italic max-w-md truncate">
+                        {r.description}
+                      </p>
+                    )}
                   </div>
+
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className="font-bold text-sm" style={{ color: '#A7A5D0' }}>{r.price}</span>
+                    <span className="font-extrabold text-base" style={{ color: '#7DA68D' }}>
+                      {r.price} €
+                    </span>
                     <span
                       className="px-3 py-1 rounded-full text-xs font-bold"
                       style={{ background: s.bg, color: s.color }}
