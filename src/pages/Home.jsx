@@ -1,8 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, MapPin, Calendar, Heart } from 'lucide-react';
+import { Search, MapPin, Calendar, Heart, Camera, Wine, Music, Sparkles, PartyPopper } from 'lucide-react';
 import { categoryData } from '../utils/categoryData';
-import { Camera, Wine, Music, Sparkles, PartyPopper } from 'lucide-react';
 
 const CATEGORY_CARDS = [
   { 
@@ -27,150 +26,131 @@ const CATEGORY_CARDS = [
   },
 ];
 
-const CARD_BG = [
-  'linear-gradient(135deg,#C8DAD0,#E8F0EA)',
-  'linear-gradient(135deg,#D4D2EC,#EEEDF9)',
-  'linear-gradient(135deg,#BDD2C4,#E0EBE4)',
-  'linear-gradient(135deg,#C5CEDE,#E4EAF4)',
-];
-
-const TOP_PROVIDERS = Object.entries(categoryData)
-  .flatMap(([cat, d]) => d.providers.map(p => ({ ...p, category: cat, catLabel: d.label, catIcon: d.icon })))
-  .sort((a, b) => b.rating - a.rating)
-  .slice(0, 4);
-
-const FOOTER_LINKS = {
-  Company: ['About', 'Blog', 'Careers'],
-  Legal: ['Terms', 'Privacy', 'Cookies'],
-  Support: ['Help Center', 'Contact Us', 'FAQ'],
-};
-
 export default function Home() {
   const navigate = useNavigate();
-  const [category, setCategory] = useState(''); // Popravljeno: zamijenjeno "what" sa "category"
+  const [category, setCategory] = useState('');
   const [where, setWhere] = useState('');
   const [when, setWhen] = useState('');
-  const [liked, setLiked] = useState({});
 
   const handleSearch = (e) => {
-  e.preventDefault();
-  
-  // Stvaramo URL parametre na temelju onoga što je korisnik unio/odabrao
-  const params = new URLSearchParams();
-  if (category) params.append('category', category);
-  if (where) params.append('where', where);
-  if (when) params.append('when', when);
-
-  // Preusmjeravamo na /services?category=...&where=...&when=...
-  navigate(`/services?${params.toString()}`);
-};
-
-  const toggleLike = (id, e) => {
     e.preventDefault();
-    setLiked(prev => ({ ...prev, [id]: !prev[id] }));
+    
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (where) params.append('where', where);
+    if (when) params.append('when', when);
+
+    navigate(`/services?${params.toString()}`);
   };
 
   return (
     <div className="min-h-screen bg-white w-full flex flex-col">
 
-
       {/* ═══ HERO ═══ */}
-<div className="w-full px-4 sm:px-8 py-4">
-  <section className="w-full py-16 sm:py-20 px-6 rounded-3xl text-center relative overflow-hidden" style={{ background: '#7DA68D' }}>
-    
-    {/* Decorative background icons (suptilne ikonice u pozadini) */}
-    <div className="absolute inset-0 pointer-events-none select-none text-white/15 overflow-hidden">
-      <Camera className="absolute top-6 left-8 w-16 h-16 -rotate-12" />
-      <Wine className="absolute top-10 right-12 w-14 h-14 rotate-12" />
-      <Music className="absolute bottom-12 left-16 w-12 h-12 rotate-45" />
-      <Calendar className="absolute bottom-8 right-20 w-16 h-16 -rotate-12" />
-      <PartyPopper className="absolute top-1/2 left-4 -translate-y-1/2 w-10 h-10 -rotate-12 hidden sm:block" />
-      <Sparkles className="absolute top-1/2 right-6 -translate-y-1/2 w-10 h-10 rotate-12 hidden sm:block" />
-      <Heart className="absolute top-4 left-1/3 w-8 h-8 rotate-12 opacity-60" />
-    </div>
-
-    <div className="max-w-3xl mx-auto relative z-10">
-      <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-4">
-        Isplaniraj svoj događaj uz Meetivu
-      </h1>
-      <p className="text-white/85 text-sm sm:text-base max-w-lg mx-auto mb-10">
-        Od intimnih okupljanja do velikih korporativnih gala večera – pronađite sve što vam treba na jednom mjestu.      </p>
-
-      {/* Search bar */}
-      <form onSubmit={handleSearch} className="w-full max-w-3xl mx-auto">
-        <div className="bg-white rounded-2xl flex flex-col md:flex-row items-stretch w-full overflow-hidden p-2 md:p-0 gap-2 md:gap-0 shadow-lg">
-
-          {/* KATEGORIJA */}
-          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-            <Search size={18} className="text-gray-400 shrink-0" />
-            <div className="min-w-0 text-left w-full">
-              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Što tražiš?</p>
-              <select 
-                value={category} 
-                onChange={e => setCategory(e.target.value)}
-                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                style={{ color: '#788284' }}
-              >
-                <option value="">Odaberi kategoriju...</option>
-                <option value="sale">Sale i prostori</option>
-                <option value="fotografi">Fotografi i snimatelji</option>
-                <option value="bendovi">Bendovi & DJ-i</option>
-                <option value="catering">Catering i hrana</option>
-                <option value="dekoracije">Dekoracije i cvijeće</option>
-              </select>
-            </div>
+      <div className="w-full px-4 sm:px-8 py-4">
+        <section className="w-full py-16 sm:py-20 px-6 rounded-3xl text-center relative overflow-hidden" style={{ background: '#7DA68D' }}>
+          
+          {/* Decorative background icons */}
+          <div className="absolute inset-0 pointer-events-none select-none text-white/15 overflow-hidden">
+            <Camera className="absolute top-6 left-8 w-16 h-16 -rotate-12" />
+            <Wine className="absolute top-10 right-12 w-14 h-14 rotate-12" />
+            <Music className="absolute bottom-12 left-16 w-12 h-12 rotate-45" />
+            <Calendar className="absolute bottom-8 right-20 w-16 h-16 -rotate-12" />
+            <PartyPopper className="absolute top-1/2 left-4 -translate-y-1/2 w-10 h-10 -rotate-12 hidden sm:block" />
+            <Sparkles className="absolute top-1/2 right-6 -translate-y-1/2 w-10 h-10 rotate-12 hidden sm:block" />
+            <Heart className="absolute top-4 left-1/3 w-8 h-8 rotate-12 opacity-60" />
           </div>
 
-          {/* GDJE? */}
-          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-            <MapPin size={18} className="text-gray-400 shrink-0" />
-            <div className="min-w-0 text-left w-full">
-              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Gdje?</p>
-              <input 
-                type="text" 
-                value={where} 
-                onChange={e => setWhere(e.target.value)}
-                placeholder="Grad"
-                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                style={{ color: '#2B3132' }} 
-              />
-            </div>
+          <div className="max-w-3xl mx-auto relative z-10">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white leading-tight mb-4">
+              Isplaniraj svoj događaj uz Meetivu
+            </h1>
+            <p className="text-white/85 text-sm sm:text-base max-w-lg mx-auto mb-10">
+              Od intimnih okupljanja do velikih korporativnih gala večera – pronađite sve što vam treba na jednom mjestu.
+            </p>
+
+            {/* Search bar */}
+            <form onSubmit={handleSearch} className="w-full max-w-3xl mx-auto">
+              <div className="bg-white rounded-2xl flex flex-col md:flex-row items-stretch w-full overflow-hidden p-2 md:p-0 gap-2 md:gap-0 shadow-lg">
+
+                {/* KATEGORIJA */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <Search size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Što tražiš?</p>
+                    <select 
+                      value={category} 
+                      onChange={e => setCategory(e.target.value)}
+                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent cursor-pointer" 
+                      style={{ color: '#788284' }}
+                    >
+                      <option value="">Odaberi kategoriju...</option>
+                      <option value="sale">Sale i prostori</option>
+                      <option value="fotografi">Fotografi i snimatelji</option>
+                      <option value="bendovi">Bendovi & DJ-i</option>
+                      <option value="catering">Catering i hrana</option>
+                      <option value="dekoracije">Dekoracije i cvijeće</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* GDJE? */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <MapPin size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Gdje?</p>
+                    <input 
+                      type="text" 
+                      value={where} 
+                      onChange={e => setWhere(e.target.value)}
+                      placeholder="Grad"
+                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                      style={{ color: '#2B3132' }} 
+                    />
+                  </div>
+                </div>
+
+                {/* KADA? */}
+                <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
+                  <Calendar size={18} className="text-gray-400 shrink-0" />
+                  <div className="min-w-0 text-left w-full">
+                    <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Kada?</p>
+                    <input 
+                      type="text" 
+                      value={when} 
+                      onChange={e => setWhen(e.target.value)}
+                      placeholder="Datum"
+                      className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
+                      style={{ color: '#2B3132' }} 
+                    />
+                  </div>
+                </div>
+
+                {/* BUTTON */}
+                <button 
+                  type="submit"
+                  className="w-full md:w-auto px-8 py-3 font-semibold text-white text-sm rounded-xl md:rounded-none shrink-0 transition-all hover:opacity-90 cursor-pointer"
+                  style={{ background: '#A7A5D0', border: 'none' }}
+                >
+                  Search
+                </button>
+
+              </div>
+            </form>
           </div>
+        </section>
+      </div>
 
-          {/* KADA? */}
-          <div className="flex items-center gap-3 flex-1 px-4 py-3 md:border-r border-gray-100">
-            <Calendar size={18} className="text-gray-400 shrink-0" />
-            <div className="min-w-0 text-left w-full">
-              <p className="text-[0.6rem] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Kada?</p>
-              <input 
-                type="text" 
-                value={when} 
-                onChange={e => setWhen(e.target.value)}
-                placeholder="Datum"
-                className="w-full border-none outline-none text-xs sm:text-sm bg-transparent" 
-                style={{ color: '#2B3132' }} 
-              />
-            </div>
-          </div>
+      {/* ═══ KRAĆI UVODNI TEKST IZA HERO SEKCIJE ═══ */}
+<section className="w-full px-4 sm:px-8 pt-8 pb-2 text-center max-w-2xl mx-auto flex flex-col items-center">
+  {/* Elegantna neutralna ikonica */}
+  <Sparkles size={28} style={{ color: '#7DA68D' }} className="mb-2" />
 
-          {/* BUTTON */}
-          <button 
-            type="submit"
-            className="w-full md:w-auto px-8 py-3 font-semibold text-white text-sm rounded-xl md:rounded-none shrink-0 transition-all hover:opacity-90 cursor-pointer"
-            style={{ background: '#A7A5D0', border: 'none' }}
-          >
-            Search
-          </button>
-
-        </div>
-      </form>
-    </div>
-  </section>
-</div>
+</section>
 
       {/* ═══ BROWSE BY CATEGORY (BENTO GRID) ═══ */}
       <section className="w-full px-4 sm:px-8 py-6">
-        <h2 className="text-xl font-extrabold mb-5" style={{ color: '#4e5053' }}>Izaberi kategoriju</h2>
+        <h3 className="text-lg font-extrabold mb-4" style={{ color: '#4e5053' }}>Izaberi kategoriju</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-auto md:h-[380px]">
           {/* 1. Wedding Halls */}
@@ -223,48 +203,62 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ═══ POPULAR NEAR YOU ═══ */}
-      <section className="w-full py-8 px-4 sm:px-8 my-4" style={{ background: '#F9FAFB' }}>
-        <h2 className="text-xl font-extrabold mb-1" style={{ color: '#1F2937' }}>Popular near you</h2>
-        <p className="text-xs sm:text-sm mb-6" style={{ color: '#6B7280' }}>
-          Highly rated services available in your area
-        </p>
+      {/* ═══ KORACI ORGANIZACIJE ═══ */}
+      <section className="w-full px-4 sm:px-8 py-8 text-center max-w-4xl mx-auto">
+        <span className="text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 inline-block" style={{ background: '#EEEDF9', color: '#8886B8' }}>
+          Jednostavno i brzo
+        </span>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {TOP_PROVIDERS.map((p, i) => (
-            <Link key={p.category + '-' + p.id} to={'/services/' + p.category + '/' + p.id}
-              className="flex flex-col rounded-2xl overflow-hidden bg-white hover:shadow-md transition-shadow"
-              style={{ border: '1px solid #F0F0F0', textDecoration: 'none' }}>
-
-              <div className="relative flex items-center justify-center h-36 w-full" style={{ background: CARD_BG[i] }}>
-                <span className="text-4xl opacity-30">{p.catIcon}</span>
-                <button onClick={e => toggleLike(p.id, e)}
-                  className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
-                  style={{ border: 'none', cursor: 'pointer' }}>
-                  <Heart size={14}
-                    fill={liked[p.id] ? '#A7A5D0' : 'none'}
-                    stroke={liked[p.id] ? '#A7A5D0' : '#9CA3AF'} />
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-1 flex-1 p-4">
-                <div className="flex items-center gap-1">
-                  <span className="text-xs" style={{ color: '#F59E0B' }}>★</span>
-                  <span className="text-xs font-semibold" style={{ color: '#374151' }}>{p.rating} (12 reviews)</span>
-                </div>
-                <h3 className="text-sm font-bold leading-snug" style={{ color: '#1F2937' }}>{p.name}</h3>
-                <p className="text-xs" style={{ color: '#6B7280' }}>📍 {p.location}</p>
-                <div className="flex items-center justify-between mt-auto pt-3">
-                  <span className="text-[0.65rem] font-semibold px-2 py-0.5 rounded" style={{ color: '#8886B8', background: '#EEEDF9' }}>
-                    {p.catLabel}
-                  </span>
-                  <span className="text-xs font-bold" style={{ color: '#2B3132' }}>{p.price}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-6">
+          <div className="p-4 rounded-2xl" style={{ background: '#F9FAFB' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto mb-2 text-white" style={{ background: '#7DA68D' }}>1</div>
+            <h3 className="font-bold text-sm mb-1" style={{ color: '#2B3132' }}>Pretražite</h3>
+            <p className="text-xs" style={{ color: '#6B7280' }}>Pregledajte provjerene pružatelje usluga u vašoj blizini.</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ background: '#F9FAFB' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto mb-2 text-white" style={{ background: '#7DA68D' }}>2</div>
+            <h3 className="font-bold text-sm mb-1" style={{ color: '#2B3132' }}>Usporedite</h3>
+            <p className="text-xs" style={{ color: '#6B7280' }}>Pogledajte ocjene, recenzije i ponude te odaberite najbolje.</p>
+          </div>
+          <div className="p-4 rounded-2xl" style={{ background: '#F9FAFB' }}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs mx-auto mb-2 text-white" style={{ background: '#7DA68D' }}>3</div>
+            <h3 className="font-bold text-sm mb-1" style={{ color: '#2B3132' }}>Rezervirajte</h3>
+            <p className="text-xs" style={{ color: '#6B7280' }}>Stupite u direktan kontakt i osigurajte svoj termin.</p>
+          </div>
         </div>
       </section>
+      {/* ═══ CTA BANNER ZA PRUŽATELJE USLUGA ═══ */}
+<section className="w-full px-4 sm:px-8 py-10">
+  <div 
+    className="max-w-5xl mx-auto rounded-3xl p-8 sm:p-12 text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-sm"
+    style={{ background: '#F4F7F5', border: '1px solid #E5E7EB' }}
+  >
+    <div className="max-w-xl relative z-10">
+      <span 
+        className="text-[0.65rem] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-3 inline-block"
+        style={{ background: '#E2EBE5', color: '#527560' }}
+      >
+        Za partnere
+      </span>
+      <h3 className="text-xl sm:text-2xl font-extrabold mb-2" style={{ color: '#2B3132' }}>
+        Nudite usluge za događaje?
+      </h3>
+      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+        Pridružite se Meetivi, istaknite svoju ponudu i povežite se s klijentima koji traže baš vaše usluge.
+      </p>
+    </div>
+
+    <div className="relative z-10 shrink-0 w-full sm:w-auto">
+      <Link
+        to="/register"
+        className="inline-block w-full sm:w-auto text-center px-6 py-3.5 font-semibold text-white text-sm rounded-xl transition-all hover:opacity-90 shadow-sm"
+        style={{ background: '#7DA68D', textDecoration: 'none' }}
+      >
+        Postani partner
+      </Link>
+    </div>
+  </div>
+</section>
 
     </div>
   );
